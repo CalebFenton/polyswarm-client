@@ -5,6 +5,8 @@ from queue import PriorityQueue
 
 
 class Callback(object):
+    """Invoke a list of observer functions in response to events"""
+
     def __init__(self):
         self.cbs = []
 
@@ -163,7 +165,50 @@ class OnInitializedChannelCallback(Callback):
         return await super().run(guid, ambassador, expert, msig, chain)
 
 
+class OnOfferClosedAgreementCallback(Callback):
+    """Called upon a channel being closed"""
+
+    async def run(self, expert, ambassador):
+        """Run the registered callbacks
+
+        Args:
+            ambassador (str): Address of the ambassador
+            expert (str): Address of the expert
+        """
+        return await super().run(expert, ambassador)
+
+
+class OnOfferSettleStartedCallback(Callback):
+    """Called upon a channel dispute being initiated"""
+
+    async def run(self, initiator, nonce, settle_period_end):
+        """Run the registered callbacks
+
+        Args:
+            initiator (str): Address of the challenge initiator
+            nonce (int): Sequence number of the challenge
+            settle_period_end (int): Block the settlement period ends on
+        """
+        return await super().run(initiator, nonce, settle_period_end)
+
+
+class OnOfferSettleChallengedCallback(Callback):
+    """Called upon a channel dispute being initiated"""
+
+    async def run(self, challenger, nonce, settle_period_end):
+        """Run the registered callbacks
+
+        Args:
+            challenger (str): Address of the challenger
+            nonce (int): Sequence number of the challenge
+            settle_period_end (int): Block the settlement period ends on
+        """
+        return await super().run(challenger, nonce, settle_period_end)
+
+
 class Schedule(object):
+    """Track events scheduled to be triggered on later blocks in a priority queue"""
+
     def __init__(self):
         self.queue = PriorityQueue()
 

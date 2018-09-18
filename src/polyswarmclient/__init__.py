@@ -184,6 +184,15 @@ class Client(object):
 
         return response.get('result')
 
+    async def update_base_nonce(self, chain='home'):
+        """Update account's nonce from polyswarmd
+        Args:
+            chain (str): Which chain to operate on
+            Integer value of nonce
+        """
+        async with self.base_nonce_lock[chain]:
+            self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
+
     async def post_transactions(self, transactions, chain='home'):
         """Post a set of (signed) transactions to Ethereum via polyswarmd, parsing the emitted events
 
@@ -218,15 +227,6 @@ class Client(object):
                 logging.error('Received transaction error: %s', response)
 
         return response
-
-    async def update_base_nonce(self, chain='home'):
-        """Update account's nonce from polyswarmd
-        Args:
-            chain (str): Which chain to operate on
-            Integer value of nonce
-        """
-        async with self.base_nonce_lock[chain]:
-            self.base_nonce[chain] = await self.make_request('GET', '/nonce', chain)
 
     async def list_artifacts(self, ipfs_uri):
         if self.__session is None or self.__session.closed:
@@ -390,40 +390,43 @@ class Client(object):
         last_block = 0
         async with websockets.connect(wsuri) as ws:
             while not ws.closed:
-                event = json.loads(await ws.recv())
-                if event['event'] == 'block':
-                    number = event['data']['number']
+                try:
+                    resp = json.loads(await ws.recv())
+                    event = resp.get('event')
+                    data = resp.get('data')
+                except json.JSONDecodeError:
+                    logging.error('Invalid event response from polyswarmd: %s', resp)
+                    continue
+
+                if event == 'block':
+                    number = data.get('number', 0)
                     if number <= last_block:
                         continue
                     if number % 100 == 0:
                         logging.debug('Block %s on chain %s', number, chain)
                     asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
                     asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number))
-                elif event['event'] == 'bounty':
-                    data = event['data']
+                elif event == 'bounty':
                     logging.info('Received bounty on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_new_bounty.run(**data, chain=chain))
-                elif event['event'] == 'assertion':
-                    data = event['data']
+                elif event == 'assertion':
                     logging.info('Received assertion on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_new_assertion.run(**data, chain=chain))
-                elif event['event'] == 'reveal':
-                    data = event['data']
+                elif event == 'reveal':
                     logging.info('Received reveal on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_reveal_assertion.run(**data, chain=chain))
-                elif event['event'] == 'verdict':
-                    data = event['data']
+                elif event == 'verdict':
                     logging.info('Received verdict on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_new_verdict.run(**data, chain=chain))
-                elif event['event'] == 'quorum':
-                    data = event['data']
+                elif event == 'quorum':
                     logging.info('Received quorum on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_quorum_reached.run(**data, chain=chain))
-                elif event['event'] == 'settled_bounty':
-                    data = event['data']
+                elif event == 'settled_bounty':
                     logging.info('Received settled bounty on chain %s: %s', chain, data)
                     asyncio.get_event_loop().create_task(self.on_settled_bounty.run(**data, chain=chain))
-                elif event['event'] == 'initialized_channel':
-                    data = event['data']
+                elif event == 'initialized_channel':
                     logging.info('Received initialized_channel: %s', data)
                     asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data, chain=chain))
+                else:
+                    logging.error('Invalid event type from polyswarmd: %s', resp)
+                    continue

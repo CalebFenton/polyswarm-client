@@ -70,7 +70,7 @@ class Ambassador(object):
         bounty = await self.next_bounty(chain)
         while bounty is not None:
             # Exit if we are in testing mode
-            if self.testing > 0 and self.bounties_posted >= self.testing:
+            if self.testing and self.bounties_posted >= self.testing:
                 logging.info('All testing bounties submitted')
                 break
             self.bounties_posted += 1
@@ -93,14 +93,14 @@ class Ambassador(object):
 
     async def handle_settle_bounty(self, bounty_guid, chain):
         self.settles_posted += 1
-        if self.testing > 0:
+        if self.testing:
             if self.settles_posted > self.testing:
                 logging.warning('Scheduled settle, but finished with testing mode')
                 return []
             logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
-        if self.testing > 0 and self.settles_posted == self.testing:
+        if self.testing and self.settles_posted == self.testing:
             logging.info("All testing bounties complete, exiting")
             self.client.stop()
         return ret

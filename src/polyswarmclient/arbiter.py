@@ -68,7 +68,7 @@ class Arbiter(object):
             Response JSON parsed from polyswarmd containing placed assertions
         """
         self.bounties_seen += 1
-        if self.testing > 0:
+        if self.testing:
             if self.bounties_seen > self.testing:
                 logging.info('Received new bounty, but finished with testing mode')
                 return []
@@ -97,7 +97,7 @@ class Arbiter(object):
 
     async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
         self.votes_posted += 1
-        if self.testing > 0:
+        if self.testing:
             if self.votes_posted > self.testing:
                 logging.warning('Scheduled vote, but finished with testing mode')
                 return []
@@ -106,14 +106,14 @@ class Arbiter(object):
 
     async def handle_settle_bounty(self, bounty_guid, chain):
         self.settles_posted += 1
-        if self.testing > 0:
+        if self.testing:
             if self.settles_posted > self.testing:
                 logging.warning('Scheduled settle, but finished with testing mode')
                 return []
             logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
-        if self.testing > 0 and self.settles_posted >= self.testing:
+        if self.testing and self.settles_posted >= self.testing:
             logging.info("All testing bounties complete, exiting")
             self.client.stop()
         return ret
