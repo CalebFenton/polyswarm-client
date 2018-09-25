@@ -391,7 +391,8 @@ class Client(object):
         async with websockets.connect(wsuri) as ws:
             while not ws.closed:
                 try:
-                    resp = json.loads(await ws.recv())
+                    resp = await ws.recv()
+                    resp = json.loads(resp)
                     event = resp.get('event')
                     data = resp.get('data')
                 except json.JSONDecodeError:
