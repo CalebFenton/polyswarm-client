@@ -32,6 +32,7 @@ class Arbiter(object):
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
+
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 
@@ -64,6 +65,7 @@ class Arbiter(object):
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
             chain (str): Is this on the home or side chain?
+
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """

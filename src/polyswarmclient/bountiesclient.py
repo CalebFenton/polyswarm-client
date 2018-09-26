@@ -13,6 +13,7 @@ class BountiesClient(object):
 
         Args:
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing bounty parameters
         """
@@ -25,6 +26,7 @@ class BountiesClient(object):
 
         Args:
             ipfs_uri (str): IPFS URI for the artifact set
+
         Returns:
             Bloom filter value for the artifact set
         """
@@ -41,6 +43,7 @@ class BountiesClient(object):
         Args:
             guid (str): GUID of the bounty to retrieve
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing bounty details
         """
@@ -55,6 +58,7 @@ class BountiesClient(object):
             artifact_uri (str): URI of artifacts
             duration (int): Number of blocks to accept new assertions
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -81,6 +85,7 @@ class BountiesClient(object):
             bounty_guid (str): GUID of the bounty to retrieve the assertion from
             index (int): Index of the assertion
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing assertion details
         """
@@ -96,6 +101,7 @@ class BountiesClient(object):
             mask (List[bool]): Which artifacts in the bounty to assert on
             verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -127,6 +133,7 @@ class BountiesClient(object):
             verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty
             metadata (str): Optional metadata
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -155,6 +162,7 @@ class BountiesClient(object):
             verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty
             valid_bloom (bool): Is the bloom filter reported by the bounty poster valid
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -180,6 +188,7 @@ class BountiesClient(object):
         Args:
             bounty_guid (str): The bounty which we are settling
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """

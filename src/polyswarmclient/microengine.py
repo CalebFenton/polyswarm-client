@@ -31,6 +31,7 @@ class Microengine(object):
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             content (bytes): Content of the artifact to be scan
             chain (str): Chain we are operating on
+
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 
@@ -49,6 +50,7 @@ class Microengine(object):
         Args:
             guid (str): GUID of the bounty under analysis, use to correlate with artifacts in the same bounty
             chain (str): Chain we are operating on
+
         Returns:
             (int): Amount of NCT to bid in base NCT units (10 ^ -18)
         """
@@ -67,6 +69,7 @@ class Microengine(object):
             uri (str): IPFS hash of the root artifact
             expiration (str): Block number of the bounty's expiration
             chain (str): Is this on the home or side chain?
+
         Returns:
             Response JSON parsed from polyswarmd containing placed assertions
         """
@@ -92,7 +95,7 @@ class Microengine(object):
         expiration = int(expiration)
         assertion_reveal_window = self.client.bounties.parameters[chain]['assertion_reveal_window']
         arbiter_vote_window = self.client.bounties.parameters[chain]['arbiter_vote_window']
-        
+
         logging.info('Responding to bounty: %s', guid)
         nonce, assertions = await self.client.bounties.post_assertion(guid, self.bid(guid, chain), mask, verdicts, chain)
         for a in assertions:

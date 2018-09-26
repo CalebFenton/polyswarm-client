@@ -11,6 +11,7 @@ class StakingClient(object):
 
         Args:
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing staking parameters
         """
@@ -23,6 +24,7 @@ class StakingClient(object):
 
         Args:
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing staking balance
         """
@@ -34,6 +36,7 @@ class StakingClient(object):
 
         Args:
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing staking balance
         """
@@ -46,6 +49,7 @@ class StakingClient(object):
         Args:
             amount (int): The amount to stake
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -69,6 +73,7 @@ class StakingClient(object):
         Args:
             amount (int): The amount to withdraw
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """

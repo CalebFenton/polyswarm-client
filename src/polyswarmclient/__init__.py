@@ -22,6 +22,7 @@ def check_response(response):
 
     Args:
         response: Response dict parsed from JSON from polyswarmd
+
     Returns:
         (bool): True if successful else False
     """
@@ -151,6 +152,7 @@ class Client(object):
             chain (str): Which chain to operate on
             json (obj): JSON payload to send with request
             track_nonce (bool): Whether to track generated transaction and update nonce
+
         Returns:
             Response JSON parsed from polyswarmd
         """
@@ -199,6 +201,7 @@ class Client(object):
         Args:
             transactions (List[Transaction]): The transactions to sign and post
             chain (str): Which chain to operate on
+
         Returns:
             Response JSON parsed from polyswarmd containing emitted events
         """
@@ -253,6 +256,7 @@ class Client(object):
         Args:
             ipfs_uri (str): IPFS hash of the artifact to retrieve
             index (int): Index of the sub artifact to retrieve
+
         Returns:
             (bytes): Content of the artifact
         """
@@ -305,6 +309,7 @@ class Client(object):
                 (filename, bytes): File name and contents to upload
                 (filename, file_obj): (Optional) file name and file object to upload
                 (filename, None): File name to open and upload
+
         Returns:
             (str): IPFS URI of the uploaded artifact
         """

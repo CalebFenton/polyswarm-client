@@ -45,7 +45,7 @@ class BountyProgress(object):
 
         if self.stage == 'posted' and number > self.expiration:
             logging.error('Failed to get at least 1 assertion on bounty %s before expiration of %s (block %s) check micro engines',
-                    self.guid, self.expiration, number)
+                          self.guid, self.expiration, number)
             self.failed_already = True
 
     def mark_stage_complete(self, s):

@@ -5,6 +5,7 @@ class Scanner(object):
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             content (bytes): Content of the artifact to be scan
+
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 
