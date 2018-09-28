@@ -15,16 +15,14 @@ CHAIN = 'home'
 
 
 class OfferChannel(object):
-    def __init__(self, client, guid, offer_amount, ambassador_balance, expert_balance, testing=0):
+    def __init__(self, client, guid, ambassador_balance, expert_balance, nonce=0):
         self.__client = client
         self.guid = guid
-        self.offer_amount = offer_amount
         self.ambassador_balance = ambassador_balance
         self.expert_balance = expert_balance
-        self.testing = testing
+        self.nonce = nonce
 
-        self.nonce = 0
-
+        self.is_closed = False
         self.last_message = None
         self.event_socket = None
         self.msg_socket = None
@@ -33,29 +31,8 @@ class OfferChannel(object):
         self.on_settle_started = events.OnOfferSettleStartedCallback()
         self.on_settle_challenged = events.OnOfferSettleChallengedCallback()
 
-    @classmethod
-    async def create_and_open(cls, client, expert_address, ambassador_balance, offer_amount, settlement_period_length):
-        offers_created = await client.create_offer(expert_address, settlement_period_length)
-        if not offers_created or not len(offers_created) == 1:
-            raise Exception('Could not create offer')
-
-        offer_info = offers_created.pop()
-        # TOOD: String UUIDs from polyswarmd, polyswarm/polyswarmd#63
-        guid = UUID(offer_info.get('guid'))
-        msig = offer_info.get('msig')
-        state = await client.generate_state(guid, nonce=0, ambassador=self.client.address, expert=expert_address, msig_address=msig,
-                                            ambassador_balance=ambassador_balance, expert_balance=0, offer_amount=offer_amount)
-        signed_state = client.sign_state(state)
-
-        offers_opened = await client.open_offer(guid, signed_state)
-
-    @classmethod
-    def join(cls, client, guid):
-        pass
-
     def push_state(self, state):
-        # TODO: change to be a persistant database so all the assersions can be saved
-        # currently saving just the last state/signature for disputes
+        # TODO: change to be a persistant database so all the assersions can be saved, channel resume. Currently saving just the last state/signature for disputes
         self.last_message = state
 
     async def close_sockets(self):
@@ -65,36 +42,40 @@ class OfferChannel(object):
         if self.msg_socket:
             await self.msg_socket.close()
 
-    async def send_offer(self, current_state):
-        if current_state['state']['nonce'] == self.nonce:
-            artifact = self.get_next_artifact()
-            if artifact:
-                offer_state = dict(self.last_message['state'])
-                offer_state['close_flag'] = 1
-                offer_state['artifact_hash'] = artifact.uri
-                # This is the updated nonce
-                offer_state['nonce'] = self.nonce
-                offer_state['offer_amount'] = self.offer_amount
-                offer_state['guid'] = str(self.guid.int)
+    async def send_offer(self, ipfs_uri, offer_amount):
+        if is_closed or not self.last_message:
+            logging.error('Sending offer on invalid channel')
 
-                # Delete previous offer verdicts/mask
-                if 'verdicts' in offer_state:
-                    del offer_state['verdicts']
+        offer_state = dict(self.last_message['state'])
+        offer_state['close_flag'] = 1
+        offer_state['artifact_hash'] = ipfs_uri
+        # This is the updated nonce
+        offer_state['nonce'] = self.nonce
+        offer_state['offer_amount'] = offer_amount
+        offer_state['guid'] = str(self.guid.int)
 
-                if 'mask' in offer_state:
-                    del offer_state['mask']
+        # Delete previous offer verdicts/mask
+        if 'verdicts' in offer_state:
+            del offer_state['verdicts']
 
-                state = await self.__client.generate_state(offer_state)
-                sig = self.__client.sign_state(state)
+        if 'mask' in offer_state:
+            del offer_state['mask']
 
-                sig['type'] = 'offer'
-                sig['artifact'] = artifact.uri
+        state = await self.__client.generate_state(offer_state)
+        sig = self.__client.sign_state(state)
 
-                logging.info('Sending New Offer: \n%s', offer_state)
+        sig['type'] = 'offer'
+        sig['artifact'] = artifact.uri
 
-                await self.msg_socket.send(
-                    json.dumps(sig)
-                )
+        logging.info('Sending New Offer: \n%s', offer_state)
+
+        await self.msg_socket.send(
+            json.dumps(sig)
+        )
+
+    async def run(self):
+        asyncio.get_event_loop().create_task(self.listen_for_events())
+        asyncio.get_event_loop().create_task(self.listen_for_messages())
 
     async def listen_for_events(self):
         """Listen for offer events via websocket connection to polyswarmd"""
@@ -112,7 +93,7 @@ class OfferChannel(object):
                     event = resp.get('event')
                     data = resp.get('data')
                 except json.JSONDecodeError:
-                    logging.error('Invalid offer event response from polyswarmd')
+                    logging.error('Invalid offer message response from polyswarmd: %s', resp)
                     continue
 
                 if event['event'] == 'closed_agreement':
@@ -165,18 +146,19 @@ class OfferChannel(object):
                     if accepted:
                         self.nonce += 1
 
-                    if self.testing > 0:
-                        self.testing -= 1
-                        logging.info('Offers left to send %s', self.testing)
+                    #                    if self.testing > 0:
+                    #                        self.testing -= 1
+                    #                        logging.info('Offers left to send %s', self.testing)
 
                     if accepted:
                         logging.info('Offer Accepted: \n%s', msg['state'])
                         self.push_state(msg)
-                        await self.send_offer(msg)
+                        # FIXME: offer amount configurable
+                        await self.send_offer(msg, 0)
                     elif self.last_message['state']['isClosed'] == 1:
                         logging.info('Rejected State: \n%s', msg['state'])
                         logging.info('Closing channel with: \n%s', self.last_message['state'])
-                        await self.close_channel(offer_channel.last_message)
+                        await self.close_channel(self.last_message)
                 #                    else:
                 #                        logging.info('Rejected State: \n%s', msg['state'])
                 #                        logging.info('Dispting channel with: \n%s', offer_channel.last_message['state'])
@@ -198,7 +180,7 @@ class OfferChannel(object):
                     await self.send_offer(msg)
 
                 elif msg['type'] == 'close':
-                    await close_channel(session, ws, offer_channel, msg)
+                    await self.__client.close_offer(self.guid, msg)
                     await self.close_sockets()
                 else:
                     logging.error('Invalid offer message type from polyswarmd: %s', resp)
@@ -208,7 +190,6 @@ class OfferChannel(object):
 class OffersClient(object):
     def __init__(self, client):
         self.__client = client
-        self.address = self.__client.address
         self.channels = {}
 
     async def generate_state(self, guid, nonce, ambassador_address, expert_address, msig_address, ambassador_balance, expert_balance, offer_amount, close_flag,
@@ -259,7 +240,7 @@ class OffersClient(object):
         if metadata is not None:
             state['meta_data'] = metadata
 
-        results = await self.__client.make_request('POST', '/offers', CHAIN, json=parameters)
+        results = await self.__client.make_request('POST', '/offers', CHAIN, json=state)
         if not results:
             logging.error('Expected offer state, received: %s', results)
             return None
@@ -276,7 +257,7 @@ class OffersClient(object):
 
         return {'r': w3.toHex(sig.r), 'v': sig.v, 's': w3.toHex(sig.s), 'state': state}
 
-    async def create_offer(self, expert_address, settlement_period_length):
+    async def __create_offer(self, expert_address, settlement_period_length):
         offer = {
             'ambassador': self.address,
             'expert': expert_address,
@@ -293,7 +274,7 @@ class OffersClient(object):
             logging.error('Expected offer initialized, received: %s', results)
         return results.get('offers_initialized', [])
 
-    async def open_offer(self, guid, signed_state):
+    async def __open_offer(self, guid, signed_state):
         path = '/offers/{0}/open'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
@@ -305,6 +286,31 @@ class OffersClient(object):
         if 'offers_opened' not in results:
             logging.error('Expected offer opened, received: %s', results)
         return results.get('offers_opened', [])
+
+    async def create_and_open(self, expert_address, ambassador_balance, initial_offer_amount, settlement_period_length):
+        if expert_address in self.opened_channels:
+            logging.info('Asking to recreate already open offer channel, returning existing one')
+            return self.opened_channels[expert_address]
+
+        offers_created = await self.create_offer(expert_address, settlement_period_length)
+        if not offers_created or not len(offers_created) == 1:
+            raise Exception('Could not create offer')
+
+        offer_info = offers_created.pop()
+        # TOOD: String UUIDs from polyswarmd, polyswarm/polyswarmd#63
+        guid = UUID(offer_info.get('guid'))
+        msig = offer_info.get('msig')
+        state = await self.generate_state(guid, nonce=0, ambassador=self.__client.address, expert=expert_address, msig_address=msig,
+                                          ambassador_balance=ambassador_balance, expert_balance=0, offer_amount=initial_offer_amount)
+        signed_state = self.sign_state(state)
+
+        offers_opened = await self.open_offer(guid, signed_state)
+
+        channel = OfferChannel(self, guid, ambassador_balance, 0)
+        asyncio.get_event_loop().create_task(channel.run())
+        self.channels[guid] = channel
+
+        return channel
 
     async def cancel_offer(self, guid):
         path = '/offers/{0}/cancel'.format(guid)
@@ -319,7 +325,9 @@ class OffersClient(object):
             logging.error('Expected offer canceled, received: %s', results)
         return results.get('offers_canceled', [])
 
-    async def join_offer(self, guid, signed_state):
+    # TODO Async generator for accepting channels from microengine
+
+    async def __join_offer(self, guid, signed_state):
         path = '/offers/{0}/join'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
@@ -332,7 +340,11 @@ class OffersClient(object):
             logging.error('Expected offer join, received: %s', results)
         return results.get('offers_joined', [])
 
-    async def close_offer(self, guid, signed_state):
+    async def join_offer(self, guid, state):
+        signed_state = self.sign_state(state)
+        offer_info = self.__join_offer(guid, signed_state)
+
+    async def __close_offer(self, guid, signed_state):
         path = '/offers/{0}/close'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
@@ -345,18 +357,7 @@ class OffersClient(object):
             logging.error('Expected offer join, received: %s', results)
         return results.get('offers_closed', [])
 
-    async def close_challenged_offer(self, guid, signed_state):
-        path = '/offers/{0}/closeChallenged'.format(guid)
-        results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
-        if not results:
-            logging.error('Expected transactions, received: %s', results)
-            return {}
-
-        transactions = results.get('transactions', [])
-        results = await self.__client.post_transactions(transactions, CHAIN)
-        return results
-
-    async def settle_offer(self, guid, signed_state):
+    async def __settle_offer(self, guid, signed_state):
         path = '/offers/{0}/settle'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
@@ -369,7 +370,7 @@ class OffersClient(object):
             logging.error('Expected offer settle, received: %s', results)
         return results.get('offers_settled', [])
 
-    async def challenge_offer(self, guid, signed_state):
+    async def __challenge_offer(self, guid, signed_state):
         path = '/offers/{0}/challenge'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
@@ -381,3 +382,14 @@ class OffersClient(object):
         if 'offers_challenged' not in results:
             logging.error('Expected offer challenge, received: %s', results)
         return results.get('offers_challenged', [])
+
+    async def __close_challenged_offer(self, guid, signed_state):
+        path = '/offers/{0}/closeChallenged'.format(guid)
+        results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
+        if not results:
+            logging.error('Expected transactions, received: %s', results)
+            return {}
+
+        transactions = results.get('transactions', [])
+        results = await self.__client.post_transactions(transactions, CHAIN)
+        return results

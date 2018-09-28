@@ -162,7 +162,7 @@ class OnInitializedChannelCallback(Callback):
             msig (str): Address of the multi sig contract
             chain (str): Chain event received on
         """
-        return await super().run(guid, ambassador, expert, msig, chain)
+        return await super().run(guid, ambassador, expert, multi_signature)
 
 
 class OnOfferClosedAgreementCallback(Callback):
