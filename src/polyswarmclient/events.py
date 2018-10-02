@@ -165,6 +165,21 @@ class OnInitializedChannelCallback(Callback):
         return await super().run(guid, ambassador, expert, multi_signature)
 
 
+class OnReceivedOfferCallback(Callback):
+    """Called upon an offer being received"""
+
+    async def run(self, guid, ambassador, expert, multi_signature):
+        """Run the registered callbacks
+
+        Args:
+            guid (str): GUID of the channel
+            ambassador (str): Address of the ambassador
+            expert (str): Address of the expert
+            msig (str): Address of the multi sig contract
+            chain (str): Chain event received on
+        """
+        return await super().run(guid, ambassador, expert, multi_signature)
+
 class OnOfferClosedAgreementCallback(Callback):
     """Called upon a channel being closed"""
 

@@ -142,12 +142,10 @@ class Ambassador(object):
 
             logging.info('Sending offer %s: %s', self.offers_sent, offer)
             amount, channel_guid, ipfs_uri = offer
-            channel = self.client.offers.channels.get(channel_guid)
 
+            channel = self.client.offers.channels.get(channel_guid)
             if not channel:
                 logging.error('Could not retrieve open channel ')
-
-
 
             # TODO: Figure out best way to fund ambassador on channel creation
             bounties = await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain)

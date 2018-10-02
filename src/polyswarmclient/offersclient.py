@@ -15,11 +15,12 @@ CHAIN = 'home'
 
 
 class OfferChannel(object):
-    def __init__(self, client, guid, ambassador_balance, expert_balance, nonce=0):
+    def __init__(self, client, guid, ambassador_balance, expert_balance, is_ambassador, nonce=0):
         self.__client = client
         self.guid = guid
         self.ambassador_balance = ambassador_balance
         self.expert_balance = expert_balance
+        self.is_ambassador = is_ambassador
         self.nonce = nonce
 
         self.is_closed = False
@@ -30,6 +31,7 @@ class OfferChannel(object):
         self.on_closed_agreement = events.OnOfferClosedAgreementCallback()
         self.on_settle_started = events.OnOfferSettleStartedCallback()
         self.on_settle_challenged = events.OnOfferSettleChallengedCallback()
+        self.on_received_offer = events.OnReceivedOfferCallback()
 
     def push_state(self, state):
         # TODO: change to be a persistant database so all the assersions can be saved, channel resume. Currently saving just the last state/signature for disputes
@@ -43,8 +45,17 @@ class OfferChannel(object):
             await self.msg_socket.close()
 
     async def send_offer(self, ipfs_uri, offer_amount):
-        if is_closed or not self.last_message:
-            logging.error('Sending offer on invalid channel')
+        if not self.is_ambassador:
+            logging.error('Attempted to send offer as an expert')
+            return
+
+        if self.is_closed or not self.last_message:
+            logging.error('Attempted to send offer on invalid channel')
+            return
+
+        if not self.last_message['type'] != 'accept':
+            logging.error('Attempted to send an offer while one is already pending')
+            return
 
         offer_state = dict(self.last_message['state'])
         offer_state['close_flag'] = 1
@@ -65,13 +76,58 @@ class OfferChannel(object):
         sig = self.__client.sign_state(state)
 
         sig['type'] = 'offer'
-        sig['artifact'] = artifact.uri
+        sig['artifact'] = ipfs_uri
 
         logging.info('Sending New Offer: \n%s', offer_state)
 
         await self.msg_socket.send(
             json.dumps(sig)
         )
+
+    async def accept_offer(self, ipfs_uri, offer_amount):
+        if self.is_ambassador:
+            logging.error('Attempted to accept offer as an expert')
+            return
+
+        if self.is_closed or not self.last_message:
+            logging.error('Attempted to accept offer on invalid channel')
+            return
+
+        if not self.last_message['type'] != 'offer':
+            logging.error('Attempted to accept a non-existing offer')
+            return
+
+        # FIXME
+        offer_state = dict(self.last_message['state'])
+        state = await self.__client.generate_state(offer_state)
+        sig = self.__client.sign_state(state)
+
+        await self.msg_socket.send(
+            json.dumps(sig)
+        )
+
+    async def dispute_offer(self):
+        # FIXME
+        return
+
+    def check_state(self, state):
+        guid_equal = state['guid'] == self.guid.int
+        nonce_sequential = state['nonce'] == self.nonce + 1
+        ambassador_balance_expected = state['ambassador_balance'] + self.offer_amount == self.ambassador_balance
+        expert_balance_expected = state['expert_balance'] - self.offer_amount == self.expert_balance
+        verdicts_present = 'verdicts' in state
+
+        accepted = guid_equal and nonce_sequential and ambassador_balance_expected and expert_balance_expected and verdicts_present
+        # FIXME
+        return True
+
+    def check_offer(self, msg):
+        # FIXME
+        return True
+
+    def check_payout(self, msg):
+        # FIXME
+        return True
 
     async def run(self):
         asyncio.get_event_loop().create_task(self.listen_for_events())
@@ -127,64 +183,93 @@ class OfferChannel(object):
                 try:
                     resp = await ws.recv()
                     msg = json.loads(resp)
-                    msg_type = msg.get('type')
-                    state = msg.get('state')
                 except json.JSONDecodeError:
                     logging.error('Invalid offer message response from polyswarmd: %s', resp)
                     continue
 
-                if msg_type == 'decline':
-                    pass
-                elif msg_type == 'accept':
-                    guid_equal = state['guid'] == self.guid.int
-                    nonce_sequential = state['nonce'] == self.nonce + 1
-                    ambassador_balance_expected = state['ambassador_balance'] + self.offer_amount == self.ambassador_balance
-                    expert_balance_expected = state['expert_balance'] - self.offer_amount == self.expert_balance
-                    verdicts_present = 'verdicts' in state
-
-                    accepted = guid_equal and nonce_sequential and ambassador_balance_expected and expert_balance_expected and verdicts_present
-                    if accepted:
-                        self.nonce += 1
-
-                    #                    if self.testing > 0:
-                    #                        self.testing -= 1
-                    #                        logging.info('Offers left to send %s', self.testing)
-
-                    if accepted:
-                        logging.info('Offer Accepted: \n%s', msg['state'])
-                        self.push_state(msg)
-                        # FIXME: offer amount configurable
-                        await self.send_offer(msg, 0)
-                    elif self.last_message['state']['isClosed'] == 1:
-                        logging.info('Rejected State: \n%s', msg['state'])
-                        logging.info('Closing channel with: \n%s', self.last_message['state'])
-                        await self.close_channel(self.last_message)
-                #                    else:
-                #                        logging.info('Rejected State: \n%s', msg['state'])
-                #                        logging.info('Dispting channel with: \n%s', offer_channel.last_message['state'])
-                #                        await dispute_channel(session, ws, offer_channel)
-                #
-                #                    if offer_channel.testing == 0:
-                #                        await close_channel(session, ws, offer_channel, offer_channel.last_message)
-                #                        logging.info('Closing Channel: \n%s', msg['state'])
-                #                        await offer_channel.close_sockets()
-                #                        self.__client.stop()
-
-                elif msg['type'] == 'join':
-                    self.set_state(msg)
-                    logging.info('Channel Joined \n%s', msg['state'])
-
-                    if self.testing > 0:
-                        self.testing -= 1
-                        logging.info('Offers left to send %s', self.testing)
-                    await self.send_offer(msg)
-
-                elif msg['type'] == 'close':
-                    await self.__client.close_offer(self.guid, msg)
-                    await self.close_sockets()
+                if self.is_ambassador:
+                    success = self.__handle_message_ambassador(msg)
                 else:
-                    logging.error('Invalid offer message type from polyswarmd: %s', resp)
-                    continue
+                    success = self.__handle_message_expert(msg)
+
+                if not success:
+                    break
+
+    async def __handle_message_ambassador(self, msg):
+        msg_type = msg.get('type')
+        state = msg.get('state')
+
+        if not msg_type or not state:
+            return False
+
+        if msg_type == 'decline':
+            pass
+        elif msg_type == 'accept':
+            state_ok = self.check_state(state)
+            if state_ok:
+                logging.info('Offer Accepted: \n%s', state)
+
+                self.nonce += 1
+                self.push_state(msg)
+
+                # FIXME: offer amount configurable
+                await self.send_offer(msg, 0)
+            elif self.last_message['state']['isClosed'] == 1:
+                logging.info('Rejected State: \n%s', msg['state'])
+                logging.info('Closing channel with: \n%s', self.last_message['state'])
+                await self.close_channel(self.last_message)
+            else:
+                logging.info('Rejected State: \n%s', msg['state'])
+                logging.info('Dispting channel with: \n%s', self.last_message['state'])
+                # await dispute_channel(session, ws, offer_channel)
+        elif msg_type == 'join':
+            self.set_state(msg)
+            logging.info('Channel Joined \n%s', msg['state'])
+            await self.send_offer(msg)
+        elif msg_type == 'close':
+            await self.__client.close_offer(self.guid, msg)
+            await self.close_sockets()
+
+        return True
+
+    async def __handle_message_expert(self, msg):
+        msg_type = msg.get('type')
+        state = msg.get('state')
+
+        if not msg_type or not state:
+            return False
+
+        if msg_type == 'open':
+            sig = self.sign_state(msg['raw_state'])
+            await self.__client.join_offer(self.guid.int, sig)
+            logging.info('Sending Offer Channel Join Message \n%s', state)
+            sig['type'] = 'join'
+            self.set_state(msg)
+            await self.msg_socket.send(json.dumps(sig))
+        elif msg_type == 'offer':
+            offer_okay = await self.check_offer(msg)
+            if offer_okay:
+                logging.info('Received Good Offer:\n%s', msg['state'])
+                self.set_state(msg)
+                await self.accept_offer(msg)
+            else:
+                logging.info('Received Bad Offer - Will Dispute:\n%s', msg['state'])
+                await self.dispute_channel()
+        elif msg_type == 'payout':
+            pay_okay = await self.check_payout(msg)
+            if pay_okay:
+                logging.info('Received Good Pay:\n%s', msg['state'])
+                self.set_state(msg)
+            else:
+                logging.info('Received Bad Pay - Will Dispute:\n%s', msg['state'])
+                await self.dispute_channel()
+        elif msg_type == 'close':
+            sig = self.sign_state(msg['raw_state'])
+            sig['type'] = 'close'
+            await self.msg_socket.send(json.dumps(sig))
+            await self.close_sockets()
+
+        return True
 
 
 class OffersClient(object):
@@ -288,10 +373,6 @@ class OffersClient(object):
         return results.get('offers_opened', [])
 
     async def create_and_open(self, expert_address, ambassador_balance, initial_offer_amount, settlement_period_length):
-        if expert_address in self.opened_channels:
-            logging.info('Asking to recreate already open offer channel, returning existing one')
-            return self.opened_channels[expert_address]
-
         offers_created = await self.create_offer(expert_address, settlement_period_length)
         if not offers_created or not len(offers_created) == 1:
             raise Exception('Could not create offer')
@@ -306,7 +387,7 @@ class OffersClient(object):
 
         offers_opened = await self.open_offer(guid, signed_state)
 
-        channel = OfferChannel(self, guid, ambassador_balance, 0)
+        channel = OfferChannel(self, guid, ambassador_balance, 0, True)
         asyncio.get_event_loop().create_task(channel.run())
         self.channels[guid] = channel
 
@@ -340,9 +421,23 @@ class OffersClient(object):
             logging.error('Expected offer join, received: %s', results)
         return results.get('offers_joined', [])
 
-    async def join_offer(self, guid, state):
-        signed_state = self.sign_state(state)
-        offer_info = self.__join_offer(guid, signed_state)
+    async def join_offer(self, guid, msg):
+        signed_state = self.sign_state(msg['raw_state'])
+        offers_joined = self.__join_offer(guid, signed_state)
+        if not offers_joined or len(offers_joined) != 1:
+            raise Exception('Could not join offer')
+
+        state = msg['state']
+        ambassador_balance = state['ambassador_balance']
+        expert_balance = state['expert_balance']
+
+        signed_state['type'] = 'join'
+
+        channel = OfferChannel(self, ambassador_balance, expert_balance, False)
+        asyncio.get_event_loop().create_task(channel.run())
+        self.channels['guid'] = channel
+
+        return channel
 
     async def __close_offer(self, guid, signed_state):
         path = '/offers/{0}/close'.format(guid)
