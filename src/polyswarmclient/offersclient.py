@@ -44,7 +44,7 @@ class OfferChannel(object):
         if self.msg_socket:
             await self.msg_socket.close()
 
-    async def send_offer(self, ipfs_uri, offer_amount):
+    async def send_offer(self, offer_amount, ipfs_uri):
         if not self.is_ambassador:
             logging.error('Attempted to send offer as an expert')
             return
@@ -84,7 +84,7 @@ class OfferChannel(object):
             json.dumps(sig)
         )
 
-    async def accept_offer(self, ipfs_uri, offer_amount):
+    async def accept_offer(self, offer_amount, ipfs_uri):
         if self.is_ambassador:
             logging.error('Attempted to accept offer as an expert')
             return
@@ -277,8 +277,8 @@ class OffersClient(object):
         self.__client = client
         self.channels = {}
 
-    async def generate_state(self, guid, nonce, ambassador_address, expert_address, msig_address, ambassador_balance, expert_balance, offer_amount, close_flag,
-                             artifact_hash=None, engagement_deadline=None, assertion_deadline=None, mask=None, verdicts=None, metadata=None):
+    async def generate_state(self, guid, nonce, ambassador_address, expert_address, msig_address, ambassador_balance, expert_balance, offer_amount,
+                             close_flag=0, artifact_hash=None, engagement_deadline=None, assertion_deadline=None, mask=None, verdicts=None, metadata=None):
         """Generate state string from parameters
 
         Args:
@@ -302,7 +302,7 @@ class OffersClient(object):
             (str): State string generaetd by polyswarmd compatible with the offers contracts
         """
         state = {
-            'guid': guid,
+            'guid': str(guid.int),
             'nonce': nonce,
             'ambassador': ambassador_address,
             'expert': expert_address,
@@ -325,7 +325,7 @@ class OffersClient(object):
         if metadata is not None:
             state['meta_data'] = metadata
 
-        results = await self.__client.make_request('POST', '/offers', CHAIN, json=state)
+        results = await self.__client.make_request('POST', '/offers/state', CHAIN, json=state)
         if not results:
             logging.error('Expected offer state, received: %s', results)
             return None
@@ -344,7 +344,7 @@ class OffersClient(object):
 
     async def __create_offer(self, expert_address, settlement_period_length):
         offer = {
-            'ambassador': self.address,
+            'ambassador': self.__client.account,
             'expert': expert_address,
             'settlementPeriodLength': settlement_period_length,
         }
@@ -373,25 +373,27 @@ class OffersClient(object):
         return results.get('offers_opened', [])
 
     async def create_and_open(self, expert_address, ambassador_balance, initial_offer_amount, settlement_period_length):
-        offers_created = await self.create_offer(expert_address, settlement_period_length)
+        offers_created = await self.__create_offer(expert_address, settlement_period_length)
         if not offers_created or not len(offers_created) == 1:
             raise Exception('Could not create offer')
+        logging.info('Created offer channel: %s', offers_created)
 
         offer_info = offers_created.pop()
         # TOOD: String UUIDs from polyswarmd, polyswarm/polyswarmd#63
-        guid = UUID(offer_info.get('guid'))
+        guid = UUID(int=offer_info.get('guid'))
         msig = offer_info.get('msig')
-        state = await self.generate_state(guid, nonce=0, ambassador=self.__client.address, expert=expert_address, msig_address=msig,
+        state = await self.generate_state(guid, nonce=0, ambassador_address=self.__client.account, expert_address=expert_address, msig_address=msig,
                                           ambassador_balance=ambassador_balance, expert_balance=0, offer_amount=initial_offer_amount)
         signed_state = self.sign_state(state)
 
-        offers_opened = await self.open_offer(guid, signed_state)
+        offers_opened = await self.__open_offer(guid, signed_state)
+        logging.info('Opened offer channel: %s', offers_opened)
 
         channel = OfferChannel(self, guid, ambassador_balance, 0, True)
         asyncio.get_event_loop().create_task(channel.run())
         self.channels[guid] = channel
 
-        return channel
+        return guid
 
     async def cancel_offer(self, guid):
         path = '/offers/{0}/cancel'.format(guid)

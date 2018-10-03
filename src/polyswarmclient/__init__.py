@@ -404,12 +404,17 @@ class Client(object):
                     logging.error('Invalid event response from polyswarmd: %s', resp)
                     continue
 
-                if event == 'block':
+                if event == 'connected':
+                    logging.info('Connected to event socket at: %s', data.get('start_time'))
+                elif event == 'block':
                     number = data.get('number', 0)
+
                     if number <= last_block:
                         continue
+
                     if number % 100 == 0:
                         logging.debug('Block %s on chain %s', number, chain)
+
                     asyncio.get_event_loop().create_task(self.on_new_block.run(number=number, chain=chain))
                     asyncio.get_event_loop().create_task(self.__handle_scheduled_events(number))
                 elif event == 'bounty':
@@ -435,4 +440,3 @@ class Client(object):
                     asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data, chain=chain))
                 else:
                     logging.error('Invalid event type from polyswarmd: %s', resp)
-                    continue

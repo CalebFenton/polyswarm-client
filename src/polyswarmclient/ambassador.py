@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import sys
 
 from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
@@ -54,7 +53,7 @@ class Ambassador(object):
         self.client.run(self.chains)
 
     async def handle_run(self, chain):
-        asyncio.get_event_loop().create_task(self.run_bounty_task(chain))
+        # asyncio.get_event_loop().create_task(self.run_bounty_task(chain))
         asyncio.get_event_loop().create_task(self.run_offer_task())
 
     async def run_bounty_task(self, chain):
@@ -122,7 +121,19 @@ class Ambassador(object):
         """
         return None
 
-    async def run_offer_task(selfs):
+    def on_offer_posted(self, guid, amount, ipfs_uri):
+        """Override this to implement additional steps after offer transmission
+
+        Args:
+            guid (str): GUID of the offer channel
+            amount (int): Amount of the posted bounty
+            ipfs_uri (str): URI of the artifact submitted
+            expiration (int): Block number of bounty expiration
+            chain (str): Chain we are operating on
+        """
+        pass
+
+    async def run_offer_task(self):
         # HACK: In testing mode we start up ambassador/arbiter/microengine
         # immediately and start submitting bounties, however arbiter has to wait
         # a block for its staking tx to be mined before it starts respoonding.
@@ -143,22 +154,9 @@ class Ambassador(object):
             logging.info('Sending offer %s: %s', self.offers_sent, offer)
             amount, channel_guid, ipfs_uri = offer
 
+            # TODO: Figure out best way to fund ambassador on channel creation
             channel = self.client.offers.channels.get(channel_guid)
             if not channel:
-                logging.error('Could not retrieve open channel ')
+                logging.error('Could not retrieve open channel')
 
-            # TODO: Figure out best way to fund ambassador on channel creation
-            bounties = await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain)
-
-            for b in bounties:
-                guid = b['guid']
-                expiration = int(b['expiration'])
-
-                # Handle any additional steps in derived implementations
-                self.on_bounty_posted(guid, amount, ipfs_uri, expiration, chain)
-
-                sb = SettleBounty(guid)
-                self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
-
-            bounty = await self.next_bounty(chain)
-
+            channel.send_offer(amount, ipfs_uri)
