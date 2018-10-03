@@ -50,6 +50,8 @@ class EicarAmbassador(Ambassador):
             # FIXME: Parameters
             self.offer_guid = await self.client.offers.create_and_open(OFFER_EXPERT, 1000, 1, 10)
 
+        filename, content = random.choice(ARTIFACTS)
+
         logging.info('Submitting %s', filename)
         ipfs_uri = await self.client.post_artifacts([(filename, content)])
         if not ipfs_uri:

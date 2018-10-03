@@ -437,6 +437,6 @@ class Client(object):
                     asyncio.get_event_loop().create_task(self.on_settled_bounty.run(**data, chain=chain))
                 elif event == 'initialized_channel':
                     logging.info('Received initialized_channel: %s', data)
-                    asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data, chain=chain))
+                    asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data))
                 else:
                     logging.error('Invalid event type from polyswarmd: %s', resp)

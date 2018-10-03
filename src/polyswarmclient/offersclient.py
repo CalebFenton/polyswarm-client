@@ -3,6 +3,7 @@ import json
 import logging
 import websockets
 
+from eth_account.messages import defunct_hash_message
 from polyswarmclient import events
 from uuid import UUID
 
@@ -16,7 +17,7 @@ CHAIN = 'home'
 
 class OfferChannel(object):
     def __init__(self, client, guid, ambassador_balance, expert_balance, is_ambassador, nonce=0):
-        self.__client = client
+        self.__offersclient = client
         self.guid = guid
         self.ambassador_balance = ambassador_balance
         self.expert_balance = expert_balance
@@ -72,8 +73,8 @@ class OfferChannel(object):
         if 'mask' in offer_state:
             del offer_state['mask']
 
-        state = await self.__client.generate_state(offer_state)
-        sig = self.__client.sign_state(state)
+        state = await self.__offersclient.generate_state(offer_state)
+        sig = self.__offersclient.sign_state(state)
 
         sig['type'] = 'offer'
         sig['artifact'] = ipfs_uri
@@ -99,8 +100,8 @@ class OfferChannel(object):
 
         # FIXME
         offer_state = dict(self.last_message['state'])
-        state = await self.__client.generate_state(offer_state)
-        sig = self.__client.sign_state(state)
+        state = await self.__offersclient.generate_state(offer_state)
+        sig = self.__offersclient.sign_state(state)
 
         await self.msg_socket.send(
             json.dumps(sig)
@@ -135,10 +136,10 @@ class OfferChannel(object):
 
     async def listen_for_events(self):
         """Listen for offer events via websocket connection to polyswarmd"""
-        assert (self.polyswarmd_uri.startswith('http'))
+        assert (self.__offersclient.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://
-        wsuri = '{0}/events/{1}'.format(self.__client.polyswarmd_uri.replace('http', 'ws', 1), self.guid)
+        wsuri = '{0}/events/{1}'.format(self.__offersclient.polyswarmd_uri.replace('http', 'ws', 1), self.guid)
         async with websockets.connect(wsuri) as ws:
             self.event_socket = ws
 
@@ -167,10 +168,10 @@ class OfferChannel(object):
 
     async def listen_for_messages(self, init_message=None):
         """Listen for offer events via websocket connection to polyswarmd"""
-        assert (self.polyswarmd_uri.startswith('http'))
+        assert (self.__offersclient.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://
-        wsuri = '{0}/messages/{1}'.format(self.__client.polyswarmd_uri.replace('http', 'ws', 1), self.guid)
+        wsuri = '{0}/messages/{1}'.format(self.__offersclient.polyswarmd_uri.replace('http', 'ws', 1), self.guid)
         async with websockets.connect(wsuri) as ws:
             self.msg_socket = ws
 
@@ -227,7 +228,7 @@ class OfferChannel(object):
             logging.info('Channel Joined \n%s', msg['state'])
             await self.send_offer(msg)
         elif msg_type == 'close':
-            await self.__client.close_offer(self.guid, msg)
+            await self.__offersclient.close_offer(self.guid, msg)
             await self.close_sockets()
 
         return True
@@ -241,7 +242,7 @@ class OfferChannel(object):
 
         if msg_type == 'open':
             sig = self.sign_state(msg['raw_state'])
-            await self.__client.join_offer(self.guid.int, sig)
+            await self.__offersclient.join_offer(self.guid.int, sig)
             logging.info('Sending Offer Channel Join Message \n%s', state)
             sig['type'] = 'join'
             self.set_state(msg)
@@ -275,6 +276,7 @@ class OfferChannel(object):
 class OffersClient(object):
     def __init__(self, client):
         self.__client = client
+        self.polyswarmd_uri = client.polyswarmd_uri
         self.channels = {}
 
     async def generate_state(self, guid, nonce, ambassador_address, expert_address, msig_address, ambassador_balance, expert_balance, offer_amount,
@@ -337,7 +339,7 @@ class OffersClient(object):
             return w3.toHex(w3.toBytes(val).rjust(32, b'\0'))
 
         state_hash = to_32byte_hex(w3.sha3(hexstr=state))
-        state_hash = w3.eth.account.defunct_hash_message(hexstr=state_hash)
+        state_hash = defunct_hash_message(hexstr=state_hash)
         sig = w3.eth.account.signHash((state_hash), private_key=self.__client.priv_key)
 
         return {'r': w3.toHex(sig.r), 'v': sig.v, 's': w3.toHex(sig.s), 'state': state}

@@ -159,4 +159,4 @@ class Ambassador(object):
             if not channel:
                 logging.error('Could not retrieve open channel')
 
-            channel.send_offer(amount, ipfs_uri)
+            await channel.send_offer(amount, ipfs_uri)
