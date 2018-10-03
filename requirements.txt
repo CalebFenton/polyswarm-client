@@ -3,9 +3,6 @@ aiohttp==2.3.1
 base58==0.2.5
 clamd==1.0.2
 click==6.7
-eth-abi==1.1.1
-eth-utils==1.0.3
-ethereum==2.3.2
 web3==4.6.0
 websockets==6.0
 yara-python==3.7.0
