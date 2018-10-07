@@ -356,7 +356,7 @@ class OffersClient(object):
         results = await self.__client.make_request('POST', '/offers', CHAIN, json=offer, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
@@ -369,7 +369,7 @@ class OffersClient(object):
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
@@ -405,7 +405,7 @@ class OffersClient(object):
         results = await self.__client.make_request('POST', path, CHAIN, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
@@ -420,7 +420,7 @@ class OffersClient(object):
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
@@ -451,7 +451,7 @@ class OffersClient(object):
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
@@ -464,7 +464,7 @@ class OffersClient(object):
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
@@ -477,7 +477,7 @@ class OffersClient(object):
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
@@ -490,7 +490,7 @@ class OffersClient(object):
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
