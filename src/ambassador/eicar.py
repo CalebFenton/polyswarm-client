@@ -25,9 +25,11 @@ class EicarAmbassador(Ambassador):
         Returns:
             (int, str, int): Tuple of amount, ipfs_uri, duration, None to terminate submission
 
-            amount (int): Amount to place this bounty for
-            ipfs_uri (str): IPFS URI of the artifact to post
-            duration (int): Duration of the bounty in blocks
+        Note:
+            | The meaning of the return types are as follows:
+            |   - **amount** (*int*): Amount to place this bounty for
+            |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
+            |   - **duration** (*int*): Duration of the bounty in blocks
         """
         amount = self.client.bounties.parameters[chain]['bounty_amount_minimum']
         filename, content = random.choice(ARTIFACTS)

@@ -22,6 +22,20 @@ class Arbiter(object):
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains={'home'}):
+        """Connect the Arbiter to a Client.
+
+        Args:
+            polyswarmd_addr (str): URL of polyswarmd you are referring to.
+            keyfile (str): Keyfile filename.
+            password (str): Password associated with Keyfile.
+            api_key (str): Your PolySwarm API key.
+            testing (int): Number of testing bounties to use.
+            insecure_transport (bool): Allow insecure transport such as HTTP?
+            chains (set(str)):  Set of chains you are acting on.
+        
+        Returns:
+            Arbiter: Arbiter instantiated with a Client.
+        """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, scanner, chains)
 
@@ -36,9 +50,11 @@ class Arbiter(object):
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 
-            bit (bool): Whether to include this artifact in the assertion or not
-            verdict (bool): Whether this artifact is malicious or not
-            metadata (str): Optional metadata about this artifact
+        Note:
+            | The meaning of the return types are as follows:
+            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
+            |   - **verdict** (*bool*): Whether this artifact is malicious or not
+            |   - **metadata** (*str*): Optional metadata about this artifact
         """
         if self.scanner:
             return await self.scacnner.scan(guid, content, chain)
@@ -46,9 +62,19 @@ class Arbiter(object):
         return False, False, ''
 
     def run(self):
+        """
+        Run the Client on the Arbiter's chains.
+        """
         self.client.run(self.chains)
 
     async def handle_run(self, chain):
+        """
+        If the Client's current balance is less than the minimum stake
+        then deposit the difference between the two to the given chain.
+
+        Args:
+            chain (str): Chain we are operating on.
+        """
         min_stake = self.client.staking.parameters[chain]['minimum_stake']
         balance = await self.client.staking.get_total_balance(chain)
         if balance < min_stake:
@@ -98,6 +124,17 @@ class Arbiter(object):
         return []
 
     async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
+        """
+        Submit verdicts on a given bounty GUID to a given chain.
+
+        Args:
+            bounty_guid (str): The bounty which we are voting on.
+            verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty.
+            valid_bloom (bool):  Is the bloom filter reported by the bounty poster valid? 
+            chain (str): Which chain to operate on.
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events.
+        """
         self.votes_posted += 1
         if self.testing:
             if self.votes_posted > self.testing:
@@ -107,6 +144,15 @@ class Arbiter(object):
         return await self.client.bounties.post_vote(bounty_guid, verdicts, valid_bloom, chain)
 
     async def handle_settle_bounty(self, bounty_guid, chain):
+        """
+        Settle the given bounty on the given chain.
+
+        Args:
+            bounty_guid (str): The bounty which we are settling.
+            chain (str): Which chain to operate on.
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events.
+        """
         self.settles_posted += 1
         if self.testing:
             if self.settles_posted > self.testing:

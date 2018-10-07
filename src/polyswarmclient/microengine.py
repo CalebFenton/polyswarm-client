@@ -21,6 +21,21 @@ class Microengine(object):
 
     @classmethod
     def connect(cls, polyswarmd_addr, keyfile, password, api_key=None, testing=0, insecure_transport=False, scanner=None, chains={'home'}):
+        """Connect the Microengine to a Client.
+
+        Args:
+            polyswarmd_addr (str): URL of polyswarmd you are referring to.
+            keyfile (str): Keyfile filename.
+            password (str): Password associated with Keyfile.
+            api_key (str): Your PolySwarm API key.
+            testing (int): Number of testing bounties to use.
+            insecure_transport (bool): Allow insecure transport such as HTTP?
+            scanner (Scanner): `Scanner` instance to use.
+            chains (set(str)):  Set of chains you are acting on.
+        
+        Returns:
+            Microengine: Microengine instantiated with a Client.
+        """
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, scanner, chains)
 
@@ -35,9 +50,11 @@ class Microengine(object):
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 
-            bit (bool): Whether to include this artifact in the assertion or not
-            verdict (bool): Whether this artifact is malicious or not
-            metadata (str): Optional metadata about this artifact
+        Note:
+            | The meaning of the return types are as follows:
+            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
+            |   - **verdict** (*bool*): Whether this artifact is malicious or not
+            |   - **metadata** (*str*): Optional metadata about this artifact
         """
         if self.scanner:
             return await self.scanner.scan(guid, content, chain)
@@ -57,6 +74,9 @@ class Microengine(object):
         return self.client.bounties.parameters[chain]['assertion_bid_minimum']
 
     def run(self):
+        """
+        Run the `Client` on the Microengine's chains.
+        """
         self.client.run(self.chains)
 
     async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
@@ -108,6 +128,19 @@ class Microengine(object):
         return assertions
 
     async def handle_reveal_assertion(self, bounty_guid, index, nonce, verdicts, metadata, chain):
+        """
+        Callback registered in `__init__` to handle the reveal assertion.
+
+        Args:
+            guid (str): GUID of the bounty being asserted on
+            index (int): Index of the assertion to reveal
+            nonce (str): Secret nonce used to reveal assertion
+            verdicts (List[bool]): List of verdicts for each artifact in the bounty
+            metadata (str): Optional metadata
+            chain (str): Chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
         self.reveals_posted += 1
         if self.testing:
             if self.reveals_posted > self.testing:
@@ -117,6 +150,15 @@ class Microengine(object):
         return await self.client.bounties.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
 
     async def handle_settle_bounty(self, bounty_guid, chain):
+        """
+        Callback registered in `__init__` to handle a settled bounty.
+
+        Args:
+            guid (str): GUID of the bounty being asserted on
+            chain (str): Chain to operate on
+        Returns:
+            Response JSON parsed from polyswarmd containing emitted events
+        """
         self.settles_posted += 1
         if self.testing:
             if self.settles_posted > self.testing:

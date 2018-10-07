@@ -23,10 +23,12 @@ class ClamavScanner(Scanner):
             chain (str): Chain we are operating on
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
-
-            bit (bool): Whether to include this artifact in the assertion or not
-            verdict (bool): Whether this artifact is malicious or not
-            metadata (str): Optional metadata about this artifact
+        
+        Note:
+            | The meaning of the return types are as follows:
+            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
+            |   - **verdict** (*bool*): Whether this artifact is malicious or not
+            |   - **metadata** (*str*): Optional metadata about this artifact
         """
         result = self.clamd.instream(BytesIO(content)).get('stream')
         if len(result) >= 2 and result[0] == 'FOUND':
@@ -36,15 +38,16 @@ class ClamavScanner(Scanner):
 
 
 class ClamavMicroengine(Microengine):
-    """Microengine which scans samples through clamd"""
+    """
+    Microengine which scans samples through clamd.
+
+    Args:
+        client (`Client`): Client to use
+        testing (int): How many test bounties to respond to
+        chains (set[str]): Chain(s) to operate on
+    """
 
     def __init__(self, client, testing=0, scanner=None, chains={'home'}):
-        """Initialize a ClamAV microengine
-
-        Args:
-            client (polyswwarmclient.Client): Client to use
-            testing (int): How many test bounties to respond to
-            chains (set[str]): Chain(s) to operate on
-        """
+        """Initialize a ClamAV microengine"""
         scanner = ClamavScanner()
         super().__init__(client, testing, scanner, chains)

@@ -25,10 +25,13 @@ Arbiter
 Bloom
 ----------------------------
 
+For more information on Bloom filters check out `Wikipedia <https://en.wikipedia.org/wiki/Bloom_filter>`_.
+
 .. automodule:: polyswarmclient.bloom
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: value
 
 BountiesClient
 -------------------------------------
@@ -69,6 +72,7 @@ Reporter
     :members:
     :undoc-members:
     :show-inheritance:
+    :exclude-members: main
 
 Scanner
 ------------------------------

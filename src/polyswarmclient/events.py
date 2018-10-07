@@ -5,18 +5,42 @@ from queue import PriorityQueue
 
 
 class Callback(object):
-    """Invoke a list of observer functions in response to events"""
+    """
+    Abstract callback class which is the parent to a number of child
+    callback classes to be used in different scenarios.
 
+    Note:
+        Classes which extend `Callback` are expected to impliment the
+        `run` method.
+    """
     def __init__(self):
         self.cbs = []
 
     def register(self, f):
+        """
+        Register a function to this Callback.
+
+        Args:
+            f (function): Function to register.
+        """
         self.cbs.append(f)
 
     def remove(self, f):
+        """
+        Remove a function previously assigned to this Callback.
+
+        Args:
+            f (function): Function to remove.
+        """
         self.cbs.remove(f)
 
     async def run(self, *args, **kwargs):
+        """
+        Run all of the registered callback functions.
+
+        Returns:
+            results (List[any]): Results returned from the callback functions
+        """
         results = []
         for cb in self.cbs:
             local_ret = await cb(*args, **kwargs)
@@ -222,26 +246,54 @@ class OnOfferSettleChallengedCallback(Callback):
 
 
 class Schedule(object):
-    """Track events scheduled to be triggered on later blocks in a priority queue"""
-
+    """
+    Generic Schedule class. Uses a PriorityQueue data structure to store Events.
+    """
     def __init__(self):
         self.queue = PriorityQueue()
 
     def empty(self):
+        """
+        Return True if the queue is empty.
+
+        Returns:
+            boolean: Is the queue empty.
+        """
         return self.queue.empty()
 
     def peek(self):
+        """
+        Return True if the queue is empty.
+
+        Returns:
+            (block, event): Tuple at the front of the queue if the queue is full, else `None`.
+        """
         return self.queue.queue[0] if self.queue.queue else None
 
     def get(self):
+        """
+        Pop the lowest valued block in the queue.
+
+        Returns:
+            (block, event): The lowest valued block in the PriorityQueue.
+        """
         return self.queue.get()
 
     def put(self, block, event):
+        """
+        Add a tuple (block, event) to the PriorityQueue. Block signifies the priority of the event.
+        """
         self.queue.put((block, event))
 
 
 @total_ordering
 class Event(object):
+    """
+    Generic Event class. Stores GUID and can compare for equality and order Events.
+
+    Args:
+        guid (str): GUID of the event.
+    """
     def __init__(self, guid):
         self.guid = guid
 
@@ -253,18 +305,18 @@ class Event(object):
 
 
 class RevealAssertion(Event):
-    """An assertion scheduled to be publically revealed"""
+    """An assertion scheduled to be publically revealed
+        
+    Args:
+        guid (str): GUID of the bounty being asserted on
+        index (int): Index of the assertion to reveal
+        nonce (str): Secret nonce used to reveal assertion
+        verdicts (List[bool]): List of verdicts for each artifact in the bounty
+        metadata (str): Optional metadata
+    """
 
     def __init__(self, guid, index, nonce, verdicts, metadata):
-        """Initialize a reveal secret assertion event
-
-        Args:
-            guid (str): GUID of the bounty being asserted on
-            index (int): Index of the assertion to reveal
-            nonce (str): Secret nonce used to reveal assertion
-            verdicts (List[bool]): List of verdicts for each artifact in the bounty
-            metadata (str): Optional metadata
-        """
+        """Initialize a reveal secret assertion event"""
         super().__init__(guid)
         self.index = index
         self.nonce = nonce
@@ -290,16 +342,15 @@ class OnRevealAssertionDueCallback(Callback):
 
 
 class VoteOnBounty(Event):
-    """A scheduled vote from an arbiter"""
+    """A scheduled vote from an arbiter
+     Args:
+        guid (str): GUID of the bounty being voted on
+        verdicts (List[bool]): List of verdicts for each artifact in the bounty
+        valid_bloom (bool): Is the bloom filter submitted with the bounty valid
+    """
 
     def __init__(self, guid, verdicts, valid_bloom):
-        """Initialize a vote on verdict event
-
-        Args:
-            guid (str): GUID of the bounty being voted on
-            verdicts (List[bool]): List of verdicts for each artifact in the bounty
-            valid_bloom (bool): Is the bloom filter submitted with the bounty valid
-        """
+        """Initialize a vote on verdict event"""
         super().__init__(guid)
         self.verdicts = verdicts
         self.valid_bloom = valid_bloom
@@ -321,13 +372,13 @@ class OnVoteOnBountyDueCallback(Callback):
 
 
 class SettleBounty(Event):
-    """A bounty scheduled to be settled"""
+    """A bounty scheduled to be settled
+     Args:
+        guid (str): GUID of the bounty being asserted on    
+    """
 
     def __init__(self, guid):
         """Initialize an settle bounty event
-
-        Args:
-            guid (str): GUID of the bounty being asserted on
         """
         super().__init__(guid)
 

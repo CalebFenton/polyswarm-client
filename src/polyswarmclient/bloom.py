@@ -13,18 +13,41 @@ w3 = Web3()
 
 
 def get_chunks_for_bloom(value_hash):
+    """
+    Bloom filter helper function. Turn a value hash into
+    a series of chunks.
+
+    Args:
+        value (str): Value to be encoded into the Bloom filter.
+    Yields:
+        chunk (bytes): Chunks of the value hash.
+    """
     assert HASH_FUNCS * 2 <= len(value_hash)
     for i in range(0, HASH_FUNCS):
         yield value_hash[2 * i:2 * (i + 1)]
 
 
 def chunk_to_bloom_bits(chunk):
+    """
+    Bloom filter helper function. Turn a chunk into a series of
+    actual bytes.
+
+    Args:
+        chunk (bytes): Byte encoded chunk.
+    """
     assert FILTER_BITS <= (1 << 16)
     high, low = bytearray(chunk)
     return 1 << ((low + (high << 8)) & (FILTER_BITS - 1))
 
 
 def get_bloom_bits(value):
+    """
+    Bloom filter helper function. Get the Bloom bits of a
+    given value.
+
+    Args:
+        value (str): Value to be encoded into the Bloom filter.
+    """
     # Could decode the ipfs_hash and use it as is, but instead hash the
     # multihash representation to side-step different hash formats going
     # forward. Should rexamine this decision
@@ -35,6 +58,7 @@ def get_bloom_bits(value):
 
 
 class BloomFilter(numbers.Number):
+    # TODO: Unit tests for BloomFilter?
     value = None
 
     def __init__(self, value=0):
@@ -44,17 +68,37 @@ class BloomFilter(numbers.Number):
         return self.value
 
     def add(self, value):
+        """
+        Add a single byte value to the Bloom filter.
+
+        Args:
+            value (bytes): Byte encoded value to add to Bloom filter.
+        """
         if not isinstance(value, bytes):
             raise TypeError("Value must be of type `bytes`")
         for bloom_bits in get_bloom_bits(value):
             self.value |= bloom_bits
 
     def extend(self, iterable):
+        """
+        Add an iterable of byte values to the bloom filter.
+
+        Args:
+            iterable (Iterable[bytes]): Iterable of byte values.
+        """
         for value in iterable:
             self.add(value)
 
     @classmethod
     def from_iterable(cls, iterable):
+        """
+        Instantiate a bloom filter from a given iterable.
+
+        Args:
+            iterable (Iterable[bytes]): Iterable of byte values.
+        Returns: 
+            BloomFilter: Instantiated BloomFilter.
+        """
         bloom = cls()
         bloom.extend(iterable)
         return bloom

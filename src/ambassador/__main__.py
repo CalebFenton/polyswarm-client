@@ -56,9 +56,11 @@ def choose_backend(backend):
         help='Connect to polyswarmd via http:// and ws://, mutially exclusive with --api-key')
 @click.option('--chains', multiple=True, default=['home'],
         help='Chain(s) to operate on')
+@click.option('--watchdog', default=0,
+        help='Number of blocks to check if bounties are being processed')
 #@click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
 #        help='Should the abassador send offers')
-def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains):
+def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, watchdog):
     """Entrypoint for the ambassador driver
 
     Args:
@@ -70,6 +72,7 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
         testing (int): Mode to process N bounties then exit (optional)
         insecure_transport (bool): Connect to polyswarmd without TLS
         chains (List[str]): Chain(s) to operate on
+        watchdog (int): Number of blocks to look back and see if bounties are being submitted
     """
     loglevel = getattr(logging, log.upper(), None)
     if not isinstance(loglevel, int):
@@ -79,7 +82,7 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
 
     ambassador_class = choose_backend(backend)
     ambassador_class.connect(polyswarmd_addr, keyfile, password,
-            api_key=api_key, testing=testing, insecure_transport=insecure_transport, chains=set(chains)).run()
+            api_key=api_key, testing=testing, insecure_transport=insecure_transport, chains=set(chains), watchdog=watchdog).run()
 
 
 if __name__ == '__main__':

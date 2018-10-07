@@ -24,18 +24,21 @@ class MultiMicroengine(Microengine):
         self.backends = [cls() for cls in BACKENDS]
 
     async def scan(self, guid, content, chain):
-        """Scan an artifact with our chosen backends
+        """Scan an artifact with our chosen backends.
 
         Args:
             guid (str): GUID of the bounty under analysis, use to track artifacts in the same bounty
             content (bytes): Content of the artifact to be scan
             chain (str): Chain sample is being sent from
+
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
 
-            bit (bool): Whether to include this artifact in the assertion or not
-            verdict (bool): Whether this artifact is malicious or not
-            metadata (str): Optional metadata about this artifact
+        Note:
+            | The meaning of the return types are as follows:
+            |   - **bit** (*bool*): Whether to include this artifact in the assertion or not
+            |   - **verdict** (*bool*): Whether this artifact is malicious or not
+            |   - **metadata** (*str*): Optional metadata about this artifact
         """
         results = await asyncio.gather(*[backend.scan(guid, content, chain) for backend in self.backends])
 

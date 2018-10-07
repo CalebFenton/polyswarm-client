@@ -9,20 +9,25 @@ class BountiesClient(object):
         self.parameters = {}
 
     async def get_parameters(self, chain='home'):
-        """Get bounty parameters from polyswarmd
+        """Get bounty parameters from polyswarmd.
 
         Args:
             chain (str): Which chain to operate on
 
         Returns:
             Response JSON parsed from polyswarmd containing bounty parameters
+
+        Note:
+            This function doesn't return anything. It instead stores the bounty parameters
+            as parsed JSON in self.parameters[chain].
         """
+
         self.parameters[chain] = await self.__client.make_request('GET', '/bounties/parameters', chain)
         if self.parameters[chain] is None:
             raise Exception('Error retrieving bounty parameters')
 
     async def calculate_bloom(self, ipfs_uri):
-        """Calculate bloom filter for a set of artifacts
+        """Calculate bloom filter for a set of artifacts.
 
         Args:
             ipfs_uri (str): IPFS URI for the artifact set
@@ -38,7 +43,7 @@ class BountiesClient(object):
         return int(bf)
 
     async def get_bounty(self, guid, chain='home'):
-        """Get a bounty from polyswarmd
+        """Get a bounty from polyswarmd.
 
         Args:
             guid (str): GUID of the bounty to retrieve
@@ -51,7 +56,7 @@ class BountiesClient(object):
         return await self.__client.make_request('GET', path, chain)
 
     async def post_bounty(self, amount, artifact_uri, duration, chain='home'):
-        """Post a bounty to polyswarmd
+        """Post a bounty to polyswarmd.
 
         Args:
             amount (int): The amount to put up as a bounty
@@ -70,7 +75,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', '/bounties', chain, json=bounty, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
@@ -79,7 +84,7 @@ class BountiesClient(object):
         return results.get('bounties', [])
 
     async def get_assertion(self, bounty_guid, index, chain='home'):
-        """Get an assertion from polyswarmd
+        """Get an assertion from polyswarmd.
 
         Args:
             bounty_guid (str): GUID of the bounty to retrieve the assertion from
@@ -93,7 +98,7 @@ class BountiesClient(object):
         return await self.__client.make_request('GET', path, chain)
 
     async def post_assertion(self, bounty_guid, bid, mask, verdicts, chain='home'):
-        """Post an assertion to polyswarmd
+        """Post an assertion to polyswarmd.
 
         Args:
             bounty_guid (str): The bounty to assert on
@@ -114,7 +119,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', path, chain, json=assertion, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         nonce = results.get('nonce', -1)
         transactions = results.get('transactions', [])
@@ -124,7 +129,7 @@ class BountiesClient(object):
         return nonce, results.get('assertions', [])
 
     async def post_reveal(self, bounty_guid, index, nonce, verdicts, metadata, chain='home'):
-        """Post an assertion reveal to polyswarmd
+        """Post an assertion reveal to polyswarmd.
 
         Args:
             bounty_guid (str): The bounty which we have asserted on
@@ -146,7 +151,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', path, chain, json=reveal, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
@@ -155,7 +160,7 @@ class BountiesClient(object):
         return results.get('reveals', [])
 
     async def post_vote(self, bounty_guid, verdicts, valid_bloom, chain='home'):
-        """Post a bounty to polyswarmd
+        """Post a vote to polyswarmd.
 
         Args:
             bounty_guid (str): The bounty which we are voting on
@@ -174,7 +179,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', path, chain, json=vote, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
@@ -196,7 +201,7 @@ class BountiesClient(object):
         results = await self.__client.make_request('POST', path, chain, track_nonce=True)
         if not results:
             logging.error('Expected transactions, received: %s', results)
-            return {}
+            return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
