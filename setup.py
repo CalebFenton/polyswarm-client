@@ -31,6 +31,7 @@ setup(
             'arbiter=arbiter.__main__:main',
             'microengine=microengine.__main__:main',
             'verbatimdbgen=arbiter.verbatimdb.__main__:main',
+            'reporter=polyswarmclient.reporter:main',
         ],
     },
 )
