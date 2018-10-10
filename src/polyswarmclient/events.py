@@ -177,9 +177,9 @@ class OnSettledBountyCallback(Callback):
 
 
 class OnAmbassadorOpenedOfferCallback(Callback):
-    """Called upon a channel being created and opened by an ambassador"""
+    """Called upon a channel being opened by an ambassador"""
 
-    async def run(self, guid, ambassador, expert, multi_signature, chain):
+    async def run(self, guid, ambassador, expert, multi_signature):
         """Run the registered callbacks
 
         Args:
@@ -190,8 +190,9 @@ class OnAmbassadorOpenedOfferCallback(Callback):
         """
         return await super().run(guid, ambassador, expert, multi_signature)
 
+
 class OnExpertJoinedOfferCallback(Callback):
-     """Called upon a channel being joined by an expert"""
+    """Called upon a channel being joined by an expert"""
 
     async def run(self, guid):
         """Run the registered callbacks
@@ -215,25 +216,20 @@ class OnExpertReceivedOfferCallback(Callback):
             msig (str): Address of the multi sig contract
             chain (str): Chain event received on
         """
-<<<<<<< HEAD
-        return await super().run(guid, ambassador, expert, multi_signature)
+        return await super().run(guid, amount, ipfs_uri)
+
 
 class OnAmbassadorReceivedOfferVerdictCallback(Callback):
-     """Called upon an offer verdict being received"""
+    """Called upon an offer verdict being received"""
 
     async def run(self, guid, verdicts):
         """Run the registered callbacks
 
         Args:
             guid (str): GUID of the channel
-            ambassador (str): Address of the ambassador
-            expert (str): Address of the expert
-            msig (str): Address of the multi sig contract
-            chain (str): Chain event received on
+            verdicts (List[bool]): list of malicious/benign verdicts
         """
         return await super().run(guid, verdicts)
-
-
 
 
 class OnOfferClosedAgreementCallback(Callback):

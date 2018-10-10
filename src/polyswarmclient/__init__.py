@@ -13,11 +13,10 @@ from polyswarmclient.bountiesclient import BountiesClient
 from polyswarmclient.stakingclient import StakingClient
 from polyswarmclient.offersclient import OffersClient
 from urllib.parse import urljoin
-
 from web3 import Web3
-w3 = Web3()
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
+w3 = Web3()
 
 
 def check_response(response):
@@ -335,30 +334,6 @@ class Client(object):
 
             return None
 
-    # Async iterator helper class
-    class __GetArtifacts(object):
-        def __init__(self, client, ipfs_uri):
-            self.i = 0
-            self.client = client
-            self.ipfs_uri = ipfs_uri
-
-        async def __aiter__(self):
-            return self
-
-        async def __anext__(self):
-            if not is_valid_ipfs_uri(self.ipfs_uri):
-                raise StopAsyncIteration
-
-            i = self.i
-            self.i += 1
-
-            if i < 256:
-                content = await self.client.get_artifact(self.ipfs_uri, i)
-                if content:
-                    return content
-
-            raise StopAsyncIteration
-
     @async_generator
     async def get_artifacts(self, ipfs_uri):
         """Fetch all artifacts under an IPFS URI
@@ -401,7 +376,6 @@ class Client(object):
                         filename = f.name
 
                     if filename:
-                        ntsuir
                         filename = os.path.basename(filename)
 
                     payload = aiohttp.payload.get_payload(f, content_type='application/octet-stream')
@@ -448,12 +422,12 @@ class Client(object):
             exp, task = self.__schedule[chain].get()
             if isinstance(task, events.RevealAssertion):
                 asyncio.get_event_loop().create_task(self.on_reveal_assertion_due.run(bounty_guid=task.guid, index=task.index, nonce=task.nonce,
-                        verdicts=task.verdicts, metadata=task.metadata, chain=chain))
+                                                                                      verdicts=task.verdicts, metadata=task.metadata, chain=chain))
             elif isinstance(task, events.SettleBounty):
                 asyncio.get_event_loop().create_task(self.on_settle_bounty_due.run(bounty_guid=task.guid, chain=chain))
             elif isinstance(task, events.VoteOnBounty):
                 asyncio.get_event_loop().create_task(self.on_vote_on_bounty_due.run(bounty_guid=task.guid, verdicts=task.verdicts,
-                        valid_bloom=task.valid_bloom, chain=chain))
+                                                                                    valid_bloom=task.valid_bloom, chain=chain))
 
     async def listen_for_events(self, chain='home'):
         """Listen for events via websocket connection to polyswarmd
@@ -463,7 +437,7 @@ class Client(object):
         """
         if chain != 'home' and chain != 'side':
             raise ValueError('Chain parameter must be "home" or "side", got {0}'.format(chain))
-        assert(self.polyswarmd_uri.startswith('http'))
+        assert (self.polyswarmd_uri.startswith('http'))
 
         # http:// -> ws://, https:// -> wss://
         wsuri = '{0}/events?chain={1}'.format(self.polyswarmd_uri.replace('http', 'ws', 1), chain)

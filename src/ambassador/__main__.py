@@ -7,7 +7,7 @@ from ambassador.eicar import EicarAmbassador
 from ambassador.filesystem import FilesystemAmbassador
 from polyswarmclient.config import init_logging
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 def choose_backend(backend):

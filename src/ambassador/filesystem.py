@@ -2,14 +2,16 @@ import logging
 import random
 import os
 
+from async_generator import async_generator, yield_
 from polyswarmclient.ambassador import Ambassador
 from corpus import DownloadToFileSystemCorpus
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
 BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
+
 
 class FilesystemAmbassador(Ambassador):
     """Ambassador which submits artifacts from a directory"""
@@ -39,7 +41,8 @@ class FilesystemAmbassador(Ambassador):
                 for f in files:
                     self.artifacts.append(os.path.join(root, f))
 
-    async def next_bounty(self, chain):
+    @async_generator
+    async def bounties(self, chain):
         """Submit either the EICAR test string or a benign sample
 
         Args:
@@ -53,14 +56,15 @@ class FilesystemAmbassador(Ambassador):
             |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
             |   - **duration** (*int*): Duration of the bounty in blocks
         """
-        amount = self.client.bounties.parameters[chain]['bounty_amount_minimum']
-        filename = random.choice(self.artifacts)
-        duration = BOUNTY_TEST_DURATION_BLOCKS
+        while True:
+            amount = self.client.bounties.parameters[chain]['bounty_amount_minimum']
+            filename = random.choice(self.artifacts)
+            duration = BOUNTY_TEST_DURATION_BLOCKS
 
-        logger.info('Submitting file %s', filename)
-        ipfs_uri = await self.client.post_artifacts([(filename, None)])
-        if not ipfs_uri:
-            logger.error('Could not submit artifact to IPFS')
-            return None
+            logger.info('Submitting file %s', filename)
+            ipfs_uri = await self.client.post_artifacts([(filename, None)])
+            if not ipfs_uri:
+                logger.error('Could not submit artifact to IPFS')
+                return None
 
-        return amount, ipfs_uri, duration
+            await yield_(amount, ipfs_uri, duration)

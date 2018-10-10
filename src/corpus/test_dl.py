@@ -3,7 +3,7 @@ import os
 import unittest
 from corpus import DownloadToFileSystemCorpus
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 class DownloaderUnitTest(unittest.TestCase):

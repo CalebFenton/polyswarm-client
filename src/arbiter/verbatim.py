@@ -6,7 +6,7 @@ import os
 from polyswarmclient.arbiter import Arbiter
 from corpus import DownloadToFileSystemCorpus
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 
 

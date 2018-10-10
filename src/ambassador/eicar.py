@@ -3,9 +3,10 @@ import logging
 import os
 import random
 
+from async_generator import async_generator, yield_
 from polyswarmclient.ambassador import Ambassador
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 EICAR = base64.b64decode(b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
 NOT_EICAR = 'this is not malicious'
@@ -16,14 +17,7 @@ OFFER_EXPERT = os.getenv('OFFER_EXPERT')
 class EicarAmbassador(Ambassador):
     """Ambassador which submits the EICAR test file"""
 
-    def __init__(self, client, testing=0, chains={'home'}):
-        super().__init__(client, testing, chains)
-        self.offer_guid = None
-
-    async def open_offer_channels(self):
-        # FIXME: Parameters
-        self.offer_guid = await self.client.offers.create_and_open(OFFER_EXPERT, 1000, 1, 10)
-
+    @async_generator
     async def bounties(self, chain):
         """Submit either the EICAR test string or a benign sample
 
@@ -49,22 +43,30 @@ class EicarAmbassador(Ambassador):
                 logging.error('Could not submit artifact to IPFS')
                 raise StopAsyncIteration
 
-            async yield amount, ipfs_uri, duration
+            await yield_(amount, ipfs_uri, duration)
 
-    async def next_offer(self):
-        if not OFFER_EXPERT:
-            logging.info('No offer expert configured, ending offer task')
-            return None
+    async def initialize_offer_channels(self):
+        if OFFER_EXPERT:
+            # TODO: Parameters
+            event = await self.open_offer_channel(OFFER_EXPERT, 100 * 10**18, 10**18, 20)
+            logger.info('Waiting on expert %s to join', OFFER_EXPERT)
+            await event.wait()
 
-        if not self.offer_guid:
-            return None
+    @async_generator
+    async def offers(self):
+        while True:
+            if not self.open_channels:
+                logging.info('No offer channels open, ending offer task')
+                raise StopAsyncIteration
 
-        filename, content = random.choice(ARTIFACTS)
+            guid = random.choice(self.open_channels.keys())
+            channel = self.open_channels.get(guid)
+            filename, content = random.choice(ARTIFACTS)
 
-        logger.info('Submitting %s', filename)
-        ipfs_uri = await self.client.post_artifacts([(filename, content)])
-        if not ipfs_uri:
-            logger.error('Could not submit artifact to IPFS')
-            return None
+            logger.info('Submitting %s', filename)
+            ipfs_uri = await self.client.post_artifacts([(filename, content)])
+            if not ipfs_uri:
+                logger.error('Could not submit artifact to IPFS')
+                return None
 
-        return self.offer_guid, ipfs_uri, 0
+            return self.offer_guid, ipfs_uri, 0

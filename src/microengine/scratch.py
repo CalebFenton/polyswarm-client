@@ -1,7 +1,7 @@
 import logging
 from polyswarmclient.microengine import Microengine
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 class ScratchMicroengine(Microengine):

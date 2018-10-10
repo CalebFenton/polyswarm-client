@@ -2,7 +2,7 @@ import logging
 
 from polyswarmclient import bloom
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 class BountiesClient(object):

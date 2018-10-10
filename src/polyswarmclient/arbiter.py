@@ -4,7 +4,7 @@ import logging
 from polyswarmclient import Client
 from polyswarmclient.events import VoteOnBounty, SettleBounty
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 class Arbiter(object):
@@ -12,10 +12,10 @@ class Arbiter(object):
         self.client = client
         self.chains = chains
         self.scanner = scanner
-        self.client.on_run.register(self.handle_run)
-        self.client.on_new_bounty.register(self.handle_new_bounty)
-        self.client.on_vote_on_bounty_due.register(self.handle_vote_on_bounty)
-        self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
+        self.client.on_run.register(self.__handle_run)
+        self.client.on_new_bounty.register(self.__handle_new_bounty)
+        self.client.on_vote_on_bounty_due.register(self.__handle_vote_on_bounty)
+        self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
 
         self.testing = testing
         self.bounties_seen = 0
@@ -69,7 +69,7 @@ class Arbiter(object):
         """
         self.client.run(self.chains)
 
-    async def handle_run(self, chain):
+    async def __handle_run(self, chain):
         """
         If the Client's current balance is less than the minimum stake
         then deposit the difference between the two to the given chain.
@@ -83,7 +83,7 @@ class Arbiter(object):
             deposits = await self.client.staking.post_deposit(min_stake - balance, chain)
             logger.info('Depositing stake: %s', deposits)
 
-    async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
+    async def __handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty
 
         Args:
@@ -125,7 +125,7 @@ class Arbiter(object):
 
         return []
 
-    async def handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
+    async def __handle_vote_on_bounty(self, bounty_guid, verdicts, valid_bloom, chain):
         """
         Submit verdicts on a given bounty GUID to a given chain.
 
@@ -145,7 +145,7 @@ class Arbiter(object):
             logger.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
         return await self.client.bounties.post_vote(bounty_guid, verdicts, valid_bloom, chain)
 
-    async def handle_settle_bounty(self, bounty_guid, chain):
+    async def __handle_settle_bounty(self, bounty_guid, chain):
         """
         Settle the given bounty on the given chain.
 

@@ -10,7 +10,7 @@ from microengine.scratch import ScratchMicroengine
 from microengine.yara import YaraMicroengine
 from polyswarmclient.config import init_logging
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 def choose_backend(backend):

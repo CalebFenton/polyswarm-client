@@ -6,7 +6,7 @@ from io import BytesIO
 from polyswarmclient.microengine import Microengine
 from polyswarmclient.scanner import Scanner
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 CLAMD_HOST = os.getenv('CLAMD_HOST', 'localhost')
 CLAMD_PORT = int(os.getenv('CLAMD_PORT', '3310'))

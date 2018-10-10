@@ -1,6 +1,6 @@
 import logging
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 
 class Scanner(object):

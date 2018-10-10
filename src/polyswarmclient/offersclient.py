@@ -30,10 +30,12 @@ class OfferChannel(object):
         self.event_socket = None
         self.msg_socket = None
 
+        self.on_expert_joined_offer = events.OnExpertJoinedOfferCallback()
+        self.on_expert_received_offer = events.OnExpertReceivedOfferCallback()
+        self.on_ambassador_received_offer_verdict = events.OnAmbassadorReceivedOfferVerdictCallback()
         self.on_closed_agreement = events.OnOfferClosedAgreementCallback()
         self.on_settle_started = events.OnOfferSettleStartedCallback()
         self.on_settle_challenged = events.OnOfferSettleChallengedCallback()
-        self.on_received_offer = events.OnExpertReceivedOfferCallback()
 
     def push_state(self, state):
         # TODO: change to be a persistant database so all the assersions can be saved, channel resume. Currently saving just the last state/signature for disputes
@@ -88,7 +90,7 @@ class OfferChannel(object):
 
     async def accept_offer(self, offer_amount, ipfs_uri):
         if self.is_ambassador:
-            logging.error('Attempted to accept offer as an expert')
+            logging.error('Attempted to accept offer as an ambassador')
             return
 
         if self.is_closed or not self.last_message:
@@ -206,6 +208,10 @@ class OfferChannel(object):
 
         if msg_type == 'decline':
             pass
+        elif msg_type == 'join':
+            self.set_state(msg)
+            logging.info('Channel Joined \n%s', msg['state'])
+            asyncio.get_event_loop().create_task(self.on_expert_joined_offer.run(self.guid))
         elif msg_type == 'accept':
             state_ok = self.check_state(state)
             if state_ok:
@@ -222,12 +228,8 @@ class OfferChannel(object):
                 await self.close_channel(self.last_message)
             else:
                 logging.info('Rejected State: \n%s', msg['state'])
-                logging.info('Dispting channel with: \n%s', self.last_message['state'])
+                logging.info('Disputing channel with: \n%s', self.last_message['state'])
                 # await dispute_channel(session, ws, offer_channel)
-        elif msg_type == 'join':
-            self.set_state(msg)
-            logging.info('Channel Joined \n%s', msg['state'])
-            await self.send_offer(msg)
         elif msg_type == 'close':
             await self.__offersclient.close_offer(self.guid, msg)
             await self.close_sockets()
@@ -272,6 +274,7 @@ class OfferChannel(object):
             await self.close_sockets()
 
         return True
+
 
 class OffersClient(object):
     """

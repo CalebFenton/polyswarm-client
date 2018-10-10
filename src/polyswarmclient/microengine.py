@@ -11,9 +11,10 @@ class Microengine(object):
         self.client = client
         self.chains = chains
         self.scanner = scanner
-        self.client.on_new_bounty.register(self.handle_new_bounty)
-        self.client.on_reveal_assertion_due.register(self.handle_reveal_assertion)
-        self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
+        self.client.on_new_bounty.register(self.__handle_new_bounty)
+        self.client.on_reveal_assertion_due.register(self.__handle_reveal_assertion)
+        self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
+        self.client.on_ambassador_opened_offer.register(self.__handle_ambassador_opened_offer)
 
         self.testing = testing
         self.bounties_seen = 0
@@ -80,7 +81,7 @@ class Microengine(object):
         """
         self.client.run(self.chains)
 
-    async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
+    async def __handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty
 
         Args:
@@ -128,7 +129,7 @@ class Microengine(object):
 
         return assertions
 
-    async def handle_reveal_assertion(self, bounty_guid, index, nonce, verdicts, metadata, chain):
+    async def __handle_reveal_assertion(self, bounty_guid, index, nonce, verdicts, metadata, chain):
         """
         Callback registered in `__init__` to handle the reveal assertion.
 
@@ -150,7 +151,7 @@ class Microengine(object):
             logger.info('Testing mode, %s reveals remaining', self.testing - self.reveals_posted)
         return await self.client.bounties.post_reveal(bounty_guid, index, nonce, verdicts, metadata, chain)
 
-    async def handle_settle_bounty(self, bounty_guid, chain):
+    async def __handle_settle_bounty(self, bounty_guid, chain):
         """
         Callback registered in `__init__` to handle a settled bounty.
 
@@ -172,3 +173,7 @@ class Microengine(object):
             logger.info("All testing bounties complete, exiting")
             self.client.stop()
         return ret
+
+    async def __handle_ambassador_opened_offer(self, guid, ambassador, expert, multi_signature):
+        logger.info('RECEIVED OFFER: guid=%s, ambassador=%s, expert=%s, multisig=%s', guid, ambassador, expert, multi_signature)
+

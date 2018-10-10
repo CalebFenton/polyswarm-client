@@ -5,7 +5,7 @@ import urllib.request
 from subprocess import check_call
 from arbiter.verbatimdb.db import generate_db
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 
 MALICIOUS_BOOTSTRAP_URL = os.getenv('MALICIOUS_BOOTSTRAP_URL')
 ARCHIVE_PASSWORD = os.getenv('ARCHIVE_PASSWORD')

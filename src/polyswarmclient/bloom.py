@@ -4,8 +4,7 @@ import logging
 import numbers
 import operator
 
-
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 FILTER_BITS = 8 * 256
 HASH_FUNCS = 8
 from web3 import Web3

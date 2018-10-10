@@ -6,7 +6,7 @@ import yara
 from polyswarmclient.microengine import Microengine
 from polyswarmclient.scanner import Scanner
 
-logger = logging.getLogger(__name__)  # Initialize logger
+logger = logging.getLogger(__name__)
 RULES_DIR = os.getenv('RULES_DIR', 'docker/yara-rules')
 
 
