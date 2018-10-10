@@ -7,6 +7,7 @@ import os
 import sys
 import websockets
 
+from async_generator import async_generator, yield_
 from polyswarmclient import events
 from polyswarmclient.bountiesclient import BountiesClient
 from polyswarmclient.stakingclient import StakingClient
@@ -114,7 +115,7 @@ class Client(object):
         self.on_new_verdict = events.OnNewVerdictCallback()
         self.on_quorum_reached = events.OnQuorumReachedCallback()
         self.on_settled_bounty = events.OnSettledBountyCallback()
-        self.on_initialized_channel = events.OnInitializedChannelCallback()
+        self.on_ambassador_opened_offer = events.OnAmbassadorOpenedOfferCallback()
 
         # Events scheduled on block deadlines
         self.on_reveal_assertion_due = events.OnRevealAssertionDueCallback()
@@ -355,20 +356,21 @@ class Client(object):
 
             raise StopAsyncIteration
 
-    def get_artifacts(self, ipfs_uri):
-        """
-        Get an iterator to return artifacts.
+    @async_generator
+    async def get_artifacts(self, ipfs_uri):
+        """Fetch all artifacts under an IPFS URI
 
         Args:
             ipfs_uri (str): URI where artificats are located
 
-        Returns:
+        Yields:
             `__GetArtifacts` iterator
         """
-        if self.__session is None or self.__session.closed:
-            raise Exception('Not running')
-
-        return Client.__GetArtifacts(self, ipfs_uri)
+        for i in range(256):
+            content = await self.client.get_artifact(ipfs_uri, i)
+            if not content:
+                raise StopAsyncIteration
+            await yield_(content)
 
     async def post_artifacts(self, files):
         """Post artifacts to polyswarmd, flexible files parameter to support different use-cases
@@ -396,6 +398,7 @@ class Client(object):
                         filename = f.name
 
                     if filename:
+                        ntsuir
                         filename = os.path.basename(filename)
 
                     payload = aiohttp.payload.get_payload(f, content_type='application/octet-stream')
@@ -506,6 +509,6 @@ class Client(object):
                     asyncio.get_event_loop().create_task(self.on_settled_bounty.run(**data, chain=chain))
                 elif event == 'initialized_channel':
                     logging.info('Received initialized_channel: %s', data)
-                    asyncio.get_event_loop().create_task(self.on_initialized_channel.run(**data))
+                    asyncio.get_event_loop().create_task(self.on_ambassador_opened_offer.run(**data))
                 else:
                     logging.error('Invalid event type from polyswarmd: %s', resp)

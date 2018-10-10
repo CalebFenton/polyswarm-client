@@ -17,7 +17,11 @@ class EicarAmbassador(Ambassador):
         super().__init__(client, testing, chains)
         self.offer_guid = None
 
-    async def next_bounty(self, chain):
+    async def open_offer_channels(self):
+        # FIXME: Parameters
+        self.offer_guid = await self.client.offers.create_and_open(OFFER_EXPERT, 1000, 1, 10)
+
+    async def bounties(self, chain):
         """Submit either the EICAR test string or a benign sample
 
         Args:
@@ -31,17 +35,18 @@ class EicarAmbassador(Ambassador):
             |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
             |   - **duration** (*int*): Duration of the bounty in blocks
         """
-        amount = self.client.bounties.parameters[chain]['bounty_amount_minimum']
-        filename, content = random.choice(ARTIFACTS)
-        duration = 20
+        while True:
+            amount = self.client.bounties.parameters[chain]['bounty_amount_minimum']
+            filename, content = random.choice(ARTIFACTS)
+            duration = 20
 
-        logging.info('Submitting %s', filename)
-        ipfs_uri = await self.client.post_artifacts([(filename, content)])
-        if not ipfs_uri:
-            logging.error('Could not submit artifact to IPFS')
-            return None
+            logging.info('Submitting %s', filename)
+            ipfs_uri = await self.client.post_artifacts([(filename, content)])
+            if not ipfs_uri:
+                logging.error('Could not submit artifact to IPFS')
+                raise StopAsyncIteration
 
-        return amount, ipfs_uri, duration
+            async yield amount, ipfs_uri, duration
 
     async def next_offer(self):
         if not OFFER_EXPERT:
@@ -49,8 +54,7 @@ class EicarAmbassador(Ambassador):
             return None
 
         if not self.offer_guid:
-            # FIXME: Parameters
-            self.offer_guid = await self.client.offers.create_and_open(OFFER_EXPERT, 1000, 1, 10)
+            return None
 
         filename, content = random.choice(ARTIFACTS)
 
@@ -60,4 +64,4 @@ class EicarAmbassador(Ambassador):
             logging.error('Could not submit artifact to IPFS')
             return None
 
-        return 0, self.offer_guid, ipfs_uri
+        return self.offer_guid, ipfs_uri, 0

@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from polyswarmclient import Client

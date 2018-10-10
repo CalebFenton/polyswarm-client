@@ -1,8 +1,11 @@
 import asyncio
 import logging
 
+from enum import Enum
 from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
+
+class
 
 
 class Ambassador(object):
@@ -11,6 +14,8 @@ class Ambassador(object):
         self.chains = chains
         self.client.on_run.register(self.handle_run)
         self.client.on_settle_bounty_due.register(self.handle_settle_bounty)
+
+        self.offers_ready = asyncio.Event()
 
         self.watchdog = watchdog
         self.first_block = 0 
@@ -42,13 +47,13 @@ class Ambassador(object):
         client = Client(polyswarmd_addr, keyfile, password, api_key, testing > 0, insecure_transport)
         return cls(client, testing, chains, watchdog)
 
-    async def next_bounty(self, chain):
-        """Override this to implement different bounty submission queues
+    async def bounties(self, chain):
+        """Override this to implement different bounty submission strategies
 
         Args:
             chain (str): Chain we are operating on
 
-        Returns:
+        Yields:
             (int, str, int): Tuple of amount, ipfs_uri, duration, None to terminate submission
 
         Note:
@@ -57,7 +62,7 @@ class Ambassador(object):
             |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
             |   - **duration** (*int*): Duration of the bounty in blocks
         """
-        return None
+        raise StopAsyncIteration
 
     def on_bounty_posted(self, guid, amount, ipfs_uri, expiration, chain):
         """Override this to implement additional steps after bounty submission
@@ -75,7 +80,7 @@ class Ambassador(object):
         """Run the Client on all of our chains."""
         self.client.run(self.chains)
 
-    async def handle_run(self, chain: str) -> None:
+    async def handle_run(self, chain):
         """
         Asynchronously run tasks on a given chain.
 
@@ -106,8 +111,7 @@ class Ambassador(object):
             logging.info('Waiting for arbiter and microengine')
             await asyncio.sleep(5)
 
-        bounty = await self.next_bounty(chain)
-        while bounty is not None:
+        async for bounty in self.bounties(chain):
             # Exit if we are in testing mode
             if self.testing and self.bounties_posted >= self.testing:
                 logging.info('All testing bounties submitted')
@@ -127,8 +131,6 @@ class Ambassador(object):
 
                 sb = SettleBounty(guid)
                 self.client.schedule(expiration + assertion_reveal_window + arbiter_vote_window, sb, chain)
-
-            bounty = await self.next_bounty(chain)
 
     async def handle_new_block(self, number, chain):
         if not self.watchdog:
@@ -167,30 +169,23 @@ class Ambassador(object):
             self.client.stop()
         return ret
 
-    async def next_offer(self):
+    async def offers(self):
         """Override this to implement different offer submission queues
 
         GUID of offer channel to send on is returned from this function, it is the responsibility of the derived class to create and track open offer channels
 
-        Returns:
+        Yields:
             (int, str, int): Tuple of amount, channel_guid, ipfs_uri, None to terminate submission
 
-            amount (int): Amount to place this bounty for
-            channel_guid (str): GUID of the offer channel to send on
-            ipfs_uri (str): IPFS URI of the artifact to post
+        Note:
+            | The meaning of the return types are as follows:
+            |   - **channel_guid** (*str*): GUID of the offer channel to send on
+            |   - **ipfs_uri** (*str*): IPFS URI of the artifact to post
+            |   - **amount** (*int*): Amount to place this bounty for
         """
-        return None
+        raise StopAsyncIteration
 
-    def on_offer_posted(self, guid, amount, ipfs_uri):
-        """Override this to implement additional steps after offer transmission
-
-        Args:
-            guid (str): GUID of the offer channel
-            amount (int): Amount of the posted bounty
-            ipfs_uri (str): URI of the artifact submitted
-            expiration (int): Block number of bounty expiration
-            chain (str): Chain we are operating on
-        """
+    async def open_offer_channels(self):
         pass
 
     async def run_offer_task(self):
@@ -203,8 +198,12 @@ class Ambassador(object):
             logging.info('Waiting for arbiter and microengine')
             await asyncio.sleep(5)
 
-        offer = await self.next_offer()
-        while offer is not None:
+        await self.open_offer_channels()
+
+        logging.info('Waiting for event channels to be set up')
+        await self.offers_ready.wait()
+
+        async for offer in self.offers():
             # Exit if we are in testing mode
             if self.testing and self.offers_sent >= self.testing:
                 logging.info('All testing offers submitted')
@@ -212,11 +211,12 @@ class Ambassador(object):
             self.offers_sent += 1
 
             logging.info('Sending offer %s: %s', self.offers_sent, offer)
-            amount, channel_guid, ipfs_uri = offer
+            channel_guid, ipfs_uri, amount = offer
 
             # TODO: Figure out best way to fund ambassador on channel creation
             channel = self.client.offers.channels.get(channel_guid)
             if not channel:
                 logging.error('Could not retrieve open channel')
+                continue
 
             await channel.send_offer(amount, ipfs_uri)

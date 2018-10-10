@@ -173,8 +173,8 @@ class OnSettledBountyCallback(Callback):
         return await super().run(settled_block, settler, chain)
 
 
-class OnInitializedChannelCallback(Callback):
-    """Called upon a channel being initialized"""
+class OnAmbassadorOpenedOfferCallback(Callback):
+    """Called upon a channel being created and opened by an ambassador"""
 
     async def run(self, guid, ambassador, expert, multi_signature):
         """Run the registered callbacks
@@ -183,16 +183,26 @@ class OnInitializedChannelCallback(Callback):
             guid (str): GUID of the channel
             ambassador (str): Address of the ambassador
             expert (str): Address of the expert
-            msig (str): Address of the multi sig contract
-            chain (str): Chain event received on
+            multi_signature (str): Address of the multisig contract
         """
         return await super().run(guid, ambassador, expert, multi_signature)
 
+class OnExpertJoinedOfferCallback(Callback):
+     """Called upon a channel being joined by an expert"""
 
-class OnReceivedOfferCallback(Callback):
+    async def run(self, guid):
+        """Run the registered callbacks
+
+        Args:
+            guid (str): GUID of the channel
+        """
+        return await super().run(guid)
+
+
+class OnExpertReceivedOfferCallback(Callback):
     """Called upon an offer being received"""
 
-    async def run(self, guid, ambassador, expert, multi_signature):
+    async def run(self, guid, amount, ipfs_uri):
         """Run the registered callbacks
 
         Args:
@@ -203,6 +213,24 @@ class OnReceivedOfferCallback(Callback):
             chain (str): Chain event received on
         """
         return await super().run(guid, ambassador, expert, multi_signature)
+
+class OnAmbassadorReceivedOfferVerdictCallback(Callback):
+     """Called upon an offer verdict being received"""
+
+    async def run(self, guid, verdicts):
+        """Run the registered callbacks
+
+        Args:
+            guid (str): GUID of the channel
+            ambassador (str): Address of the ambassador
+            expert (str): Address of the expert
+            msig (str): Address of the multi sig contract
+            chain (str): Chain event received on
+        """
+        return await super().run(guid, verdicts)
+
+
+
 
 class OnOfferClosedAgreementCallback(Callback):
     """Called upon a channel being closed"""

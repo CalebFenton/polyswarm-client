@@ -32,7 +32,7 @@ class OfferChannel(object):
         self.on_closed_agreement = events.OnOfferClosedAgreementCallback()
         self.on_settle_started = events.OnOfferSettleStartedCallback()
         self.on_settle_challenged = events.OnOfferSettleChallengedCallback()
-        self.on_received_offer = events.OnReceivedOfferCallback()
+        self.on_received_offer = events.OnExpertReceivedOfferCallback()
 
     def push_state(self, state):
         # TODO: change to be a persistant database so all the assersions can be saved, channel resume. Currently saving just the last state/signature for disputes
