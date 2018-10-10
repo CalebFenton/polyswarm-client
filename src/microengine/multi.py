@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import microengine
 import os
 
@@ -6,6 +7,7 @@ from polyswarmclient.microengine import Microengine
 from microengine.clamav import ClamavScanner
 from microengine.yara import YaraScanner
 
+logger = logging.getLogger(__name__)  # Initialize logger
 BACKENDS = [ClamavScanner, YaraScanner]
 
 
@@ -14,7 +16,7 @@ class MultiMicroengine(Microengine):
 
     def __init__(self, client, testing=0, scanner=None, chains={'home'}):
         """Initialize a multi-backend microengine
-    
+
         Args:
             client (polyswwarmclient.Client): Client to use
             testing (int): How many test bounties to respond to

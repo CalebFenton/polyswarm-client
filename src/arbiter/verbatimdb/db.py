@@ -21,7 +21,7 @@ def generate_db(db_file, malicious_dir, benign_dir):
 
 
 def insert(cursor, path, result):
-    with open (path, "rb") as f:
+    with open(path, "rb") as f:
         data = f.read()
         h = hashlib.sha256(data).hexdigest()
         value = (h, result)

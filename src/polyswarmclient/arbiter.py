@@ -4,6 +4,8 @@ import logging
 from polyswarmclient import Client
 from polyswarmclient.events import VoteOnBounty, SettleBounty
 
+logger = logging.getLogger(__name__)  # Initialize logger
+
 
 class Arbiter(object):
     def __init__(self, client, testing=0, scanner=None, chains={'home'}):
@@ -32,7 +34,7 @@ class Arbiter(object):
             testing (int): Number of testing bounties to use.
             insecure_transport (bool): Allow insecure transport such as HTTP?
             chains (set(str)):  Set of chains you are acting on.
-        
+
         Returns:
             Arbiter: Arbiter instantiated with a Client.
         """
@@ -79,7 +81,7 @@ class Arbiter(object):
         balance = await self.client.staking.get_total_balance(chain)
         if balance < min_stake:
             deposits = await self.client.staking.post_deposit(min_stake - balance, chain)
-            logging.info('Depositing stake: %s', deposits)
+            logger.info('Depositing stake: %s', deposits)
 
     async def handle_new_bounty(self, guid, author, amount, uri, expiration, chain):
         """Scan and assert on a posted bounty
@@ -98,9 +100,9 @@ class Arbiter(object):
         self.bounties_seen += 1
         if self.testing:
             if self.bounties_seen > self.testing:
-                logging.info('Received new bounty, but finished with testing mode')
+                logger.info('Received new bounty, but finished with testing mode')
                 return []
-            logging.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
+            logger.info('Testing mode, %s bounties remaining', self.testing - self.bounties_seen)
 
         verdicts = []
         async for content in self.client.get_artifacts(uri):
@@ -130,7 +132,7 @@ class Arbiter(object):
         Args:
             bounty_guid (str): The bounty which we are voting on.
             verdicts (List[bool]): Verdict (malicious/benign) for each of the artifacts in the bounty.
-            valid_bloom (bool):  Is the bloom filter reported by the bounty poster valid? 
+            valid_bloom (bool):  Is the bloom filter reported by the bounty poster valid?
             chain (str): Which chain to operate on.
         Returns:
             Response JSON parsed from polyswarmd containing emitted events.
@@ -138,9 +140,9 @@ class Arbiter(object):
         self.votes_posted += 1
         if self.testing:
             if self.votes_posted > self.testing:
-                logging.warning('Scheduled vote, but finished with testing mode')
+                logger.warning('Scheduled vote, but finished with testing mode')
                 return []
-            logging.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
+            logger.info('Testing mode, %s votes remaining', self.testing - self.votes_posted)
         return await self.client.bounties.post_vote(bounty_guid, verdicts, valid_bloom, chain)
 
     async def handle_settle_bounty(self, bounty_guid, chain):
@@ -156,12 +158,12 @@ class Arbiter(object):
         self.settles_posted += 1
         if self.testing:
             if self.settles_posted > self.testing:
-                logging.warning('Scheduled settle, but finished with testing mode')
+                logger.warning('Scheduled settle, but finished with testing mode')
                 return []
-            logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
+            logger.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
-        if self.testing and self.settles_posted >= self.testing:
-            logging.info("All testing bounties complete, exiting")
+        if self.testing > 0 and self.settles_posted >= self.testing:
+            logger.info("All testing bounties complete, exiting")
             self.client.stop()
         return ret

@@ -5,7 +5,7 @@ from enum import Enum
 from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
 
-class
+logger = logging.getLogger(__name__)
 
 
 class Ambassador(object):
@@ -18,7 +18,7 @@ class Ambassador(object):
         self.offers_ready = asyncio.Event()
 
         self.watchdog = watchdog
-        self.first_block = 0 
+        self.first_block = 0
         self.last_bounty_count = 0
         if self.watchdog:
             self.client.on_new_block.register(self.handle_new_block)
@@ -40,7 +40,7 @@ class Ambassador(object):
             testing (int): Number of testing bounties to use.
             insecure_transport (bool): Allow insecure transport such as HTTP?
             chains (set(str)):  Set of chains you are acting on.
-        
+
         Returns:
             Ambassador: Ambassador instantiated with a Client.
         """
@@ -108,17 +108,17 @@ class Ambassador(object):
         # Add in a sleep for now, this will be addressed properly in
         # polyswarm-client#5
         if self.testing > 0:
-            logging.info('Waiting for arbiter and microengine')
+            logger.info('Waiting for arbiter and microengine')
             await asyncio.sleep(5)
 
         async for bounty in self.bounties(chain):
             # Exit if we are in testing mode
-            if self.testing and self.bounties_posted >= self.testing:
-                logging.info('All testing bounties submitted')
+            if self.testing > 0 and self.bounties_posted >= self.testing:
+                logger.info('All testing bounties submitted')
                 break
             self.bounties_posted += 1
 
-            logging.info('Submitting bounty %s: %s', self.bounties_posted, bounty)
+            logger.info('Submitting bounty %s: %s', self.bounties_posted, bounty)
             amount, ipfs_uri, duration = bounty
             bounties = await self.client.bounties.post_bounty(amount, ipfs_uri, duration, chain)
 
@@ -159,13 +159,13 @@ class Ambassador(object):
         self.settles_posted += 1
         if self.testing:
             if self.settles_posted > self.testing:
-                logging.warning('Scheduled settle, but finished with testing mode')
+                logger.warning('Scheduled settle, but finished with testing mode')
                 return []
-            logging.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
+            logger.info('Testing mode, %s settles remaining', self.testing - self.settles_posted)
 
         ret = await self.client.bounties.settle_bounty(bounty_guid, chain)
-        if self.testing and self.settles_posted == self.testing:
-            logging.info("All testing bounties complete, exiting")
+        if self.testing > 0 and self.settles_posted == self.testing:
+            logger.info("All testing bounties complete, exiting")
             self.client.stop()
         return ret
 

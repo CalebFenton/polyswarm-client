@@ -5,10 +5,13 @@ import random
 
 from polyswarmclient.ambassador import Ambassador
 
+logger = logging.getLogger(__name__)  # Initialize logger
+
 EICAR = base64.b64decode(b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
 NOT_EICAR = 'this is not malicious'
 ARTIFACTS = [('eicar', EICAR), ('not_eicar', NOT_EICAR)]
 OFFER_EXPERT = os.getenv('OFFER_EXPERT')
+
 
 class EicarAmbassador(Ambassador):
     """Ambassador which submits the EICAR test file"""
@@ -58,10 +61,10 @@ class EicarAmbassador(Ambassador):
 
         filename, content = random.choice(ARTIFACTS)
 
-        logging.info('Submitting %s', filename)
+        logger.info('Submitting %s', filename)
         ipfs_uri = await self.client.post_artifacts([(filename, content)])
         if not ipfs_uri:
-            logging.error('Could not submit artifact to IPFS')
+            logger.error('Could not submit artifact to IPFS')
             return None
 
         return self.offer_guid, ipfs_uri, 0

@@ -8,17 +8,12 @@ import sys
 from polyswarmclient import Client
 from polyswarmclient.events import SettleBounty
 
+logger = logging.getLogger(__name__)
 EICAR = base64.b64decode(b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
 
 # TODO: Do we want all 'drivers' in this library?
 POLYSWARMD_HOST = os.environ.get('POLYSWARMD_HOST', 'gamma-polyswarmd.prod.polyswarm.network')
 KEYFILE = os.environ.get('KEYFILE', '')
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='[%(asctime)s] %(levelname)s [%(name)s.%(funcName)s:%(lineno)d] %(message)s',
-    datefmt='%H:%M:%S.',
-    stream=sys.stdout)
 
 
 class BountyProgress(object):
@@ -50,8 +45,8 @@ class BountyProgress(object):
             return
 
         if self.stage == 'posted' and number > self.expiration:
-            logging.error('Failed to get at least 1 assertion on bounty %s before expiration of %s (block %s) check micro engines',
-                          self.guid, self.expiration, number)
+            logger.error('Failed to get at least 1 assertion on bounty %s before expiration of %s (block %s) check micro engines',
+                         self.guid, self.expiration, number)
             self.failed_already = True
 
     def mark_stage_complete(self, s):
@@ -135,18 +130,18 @@ class Reporter(object):
 
             ipfs_uri = await self.client.post_artifacts([('eicar.com.txt', EICAR)])
             if not ipfs_uri:
-                logging.error('Error posting artifact')
+                logger.error('Error posting artifact')
                 return
 
             # TODO track that they make it through stages of bounty hell: vote, arbitration, close
-            logging.info('Posting bounty')
+            logger.info('Posting bounty')
             bounties = await self.client.bounties.post_bounty(bounty_amount_minimum + random.randint(0, 600000), ipfs_uri, 20, chain)
-            logging.info('Bounty posted')
+            logger.info('Bounty posted')
 
             for bounty in bounties:
                 expiration = int(bounty['expiration'])
                 guid = bounty['guid']
-                logging.warning('Posted bounty %s ipfs %s', guid, ipfs_uri)
+                logger.warning('Posted bounty %s ipfs %s', guid, ipfs_uri)
 
                 self.bounties['guid'] = BountyProgress(guid, expiration, assertion_reveal_window, arbiter_vote_window)
 

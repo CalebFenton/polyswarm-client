@@ -1,5 +1,7 @@
 import logging
 
+logger = logging.getLogger(__name__)  # Initialize logger
+
 
 class StakingClient(object):
     def __init__(self, client):
@@ -58,13 +60,13 @@ class StakingClient(object):
         }
         results = await self.__client.make_request('POST', '/staking/deposit', chain, json=deposit, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if 'deposits' not in results:
-            logging.error('Expected deposit, received: %s', results)
+            logger.error('Expected deposit, received: %s', results)
         return results.get('deposits', [])
 
     async def post_withdraw(self, amount, chain='home'):
@@ -82,11 +84,11 @@ class StakingClient(object):
         }
         results = await self.__client.make_request('POST', '/staking/withdraw', chain, json=withdrawal, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, chain)
         if 'withdrawals' not in results:
-            logging.error('Expected withdrawal, received: %s', results)
+            logger.error('Expected withdrawal, received: %s', results)
         return results.get('withdrawals', [])

@@ -9,6 +9,7 @@ from uuid import UUID
 
 from web3 import Web3
 
+logger = logging.getLogger(__name__)
 w3 = Web3()
 
 # Offers only take place on the home chain
@@ -272,11 +273,11 @@ class OfferChannel(object):
 
         return True
 
-
 class OffersClient(object):
     """
-    OffersClient to handle offers. Presently stores a given client and parameters. 
+    OffersClient to handle offers. Presently stores a given client and parameters.
     """
+
     def __init__(self, client):
         self.__client = client
         self.polyswarmd_uri = client.polyswarmd_uri

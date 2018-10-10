@@ -8,6 +8,9 @@ from microengine.eicar import EicarMicroengine
 from microengine.multi import MultiMicroengine
 from microengine.scratch import ScratchMicroengine
 from microengine.yara import YaraMicroengine
+from polyswarmclient.config import init_logging
+
+logger = logging.getLogger(__name__)  # Initialize logger
 
 
 def choose_backend(backend):
@@ -48,26 +51,28 @@ def choose_backend(backend):
 
 @click.command()
 @click.option('--log', default='INFO',
-        help='Logging level')
+              help='Logging level')
 @click.option('--polyswarmd-addr', envvar='POLYSWARMD_ADDR', default='localhost:31337',
-        help='Address (host:port) of polyswarmd instance')
+              help='Address (host:port) of polyswarmd instance')
 @click.option('--keyfile', envvar='KEYFILE', type=click.Path(exists=True), default='keyfile',
-        help='Keystore file containing the private key to use with this microengine')
+              help='Keystore file containing the private key to use with this microengine')
 @click.option('--password', envvar='PASSWORD', prompt=True, hide_input=True,
-        help='Password to decrypt the keyfile with')
+              help='Password to decrypt the keyfile with')
 @click.option('--api-key', envvar='API_KEY', default='',
-        help='API key to use with polyswarmd')
+              help='API key to use with polyswarmd')
 @click.option('--backend', envvar='BACKEND', default='scratch',
-        help='Backend to use')
+              help='Backend to use')
 @click.option('--testing', default=0,
-        help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
+              help='Activate testing mode for integration testing, respond to N bounties and N offers then exit')
 @click.option('--insecure-transport', is_flag=True,
-        help='Connect to polyswarmd via http:// and ws://, mutially exclusive with --api-key')
+              help='Connect to polyswarmd via http:// and ws://, mutially exclusive with --api-key')
 @click.option('--chains', multiple=True, default=['home'],
-        help='Chain(s) to operate on')
-#@click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
-#        help='Should the abassador send offers')
-def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains):
+              help='Chain(s) to operate on')
+@click.option('--log_format', default='text',
+              help='Log format. Can be `json` or `text` (default)')
+# @click.option('--offers', envvar='OFFERS', default=False, is_flag=True,
+#               help='Should the abassador send offers')
+def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, insecure_transport, chains, log_format):
     """Entrypoint for the microengine driver
 
     Args:
@@ -78,16 +83,19 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
         api_key(str): API key to use with polyswarmd
         testing (int): Mode to process N bounties then exit (optional)
         insecure_transport (bool): Connect to polyswarmd without TLS
+        log_format (str): Format to output logs in. `text` or `json`
     """
     loglevel = getattr(logging, log.upper(), None)
     if not isinstance(loglevel, int):
         logging.error('invalid log level')
         sys.exit(-1)
-    logging.basicConfig(level=loglevel, format='%(levelname)s:%(name)s:%(asctime)s %(message)s')
+    init_logging(log_format, loglevel)
 
     micro_engine_class = choose_backend(backend)
     micro_engine_class.connect(polyswarmd_addr, keyfile, password,
-            api_key=api_key, testing=testing, insecure_transport=insecure_transport, chains=set(chains)).run()
+                               api_key=api_key, testing=testing,
+                               insecure_transport=insecure_transport,
+                               chains=set(chains)).run()
 
 
 if __name__ == '__main__':

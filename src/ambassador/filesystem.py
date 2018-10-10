@@ -5,6 +5,8 @@ import os
 from polyswarmclient.ambassador import Ambassador
 from corpus import DownloadToFileSystemCorpus
 
+logger = logging.getLogger(__name__)  # Initialize logger
+
 ARTIFACT_DIRECTORY = os.getenv('ARTIFACT_DIRECTORY', 'docker/artifacts')
 ARTIFACT_BLACKLIST = os.getenv('ARTIFACT_BLACKLIST', 'truth.db').split(',')
 BOUNTY_TEST_DURATION_BLOCKS = int(os.getenv('BOUNTY_TEST_DURATION_BLOCKS', 5))
@@ -22,16 +24,15 @@ class FilesystemAmbassador(Ambassador):
         """
         super().__init__(client, testing, chains, watchdog)
 
-
         self.artifacts = []
         u = os.getenv("MALICIOUS_BOOTSTRAP_URL")
         if u:
-            logging.info("Unpacking malware corpus at {0}".format(u))
+            logger.info("Unpacking malware corpus at {0}".format(u))
             d = DownloadToFileSystemCorpus()
             d.download_and_unpack()
             bfl = d.get_benign_file_list()
             mfl = d.get_malicious_file_list()
-            logging.info("Unpacking complete, {0} malicious and {1} benign files".format(len(mfl), len(bfl)))
+            logger.info("Unpacking complete, {0} malicious and {1} benign files".format(len(mfl), len(bfl)))
             self.artifacts = bfl + mfl
         else:
             for root, dirs, files in os.walk(ARTIFACT_DIRECTORY):
@@ -40,7 +41,7 @@ class FilesystemAmbassador(Ambassador):
 
     async def next_bounty(self, chain):
         """Submit either the EICAR test string or a benign sample
-        
+
         Args:
             chain (str): Chain sample is being requested from
         Returns:
@@ -56,10 +57,10 @@ class FilesystemAmbassador(Ambassador):
         filename = random.choice(self.artifacts)
         duration = BOUNTY_TEST_DURATION_BLOCKS
 
-        logging.info('Submitting file %s', filename)
+        logger.info('Submitting file %s', filename)
         ipfs_uri = await self.client.post_artifacts([(filename, None)])
         if not ipfs_uri:
-            logging.error('Could not submit artifact to IPFS')
+            logger.error('Could not submit artifact to IPFS')
             return None
 
         return amount, ipfs_uri, duration

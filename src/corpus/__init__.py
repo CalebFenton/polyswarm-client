@@ -1,9 +1,11 @@
+import logging
 import os
 import tempfile
 import urllib.request
-import logging
 from subprocess import check_call
 from arbiter.verbatimdb.db import generate_db
+
+logger = logging.getLogger(__name__)  # Initialize logger
 
 MALICIOUS_BOOTSTRAP_URL = os.getenv('MALICIOUS_BOOTSTRAP_URL')
 ARCHIVE_PASSWORD = os.getenv('ARCHIVE_PASSWORD')
@@ -25,7 +27,7 @@ class DownloadToFileSystemCorpus(object):
         return os.path.join(self.base_dir, "benign")
 
     def download_and_unpack(self):
-        logging.info("Downloading to {0}".format(self.base_dir))
+        logger.info("Downloading to {0}".format(self.base_dir))
         for is_mal, package_name in [(True, "malicious.tgz.gpg"), (False, "benign.tgz.gpg")]:
 
             mal_dir = self.mal_path if is_mal else self.benign_path
@@ -37,7 +39,7 @@ class DownloadToFileSystemCorpus(object):
             r = urllib.request.urlretrieve("{0}/{1}".format(self.url, package_name), archive_path)
             check_call(["gpg", "--batch", "--passphrase", ARCHIVE_PASSWORD, "--decrypt",
                         "--no-use-agent", "--cipher-algo", "AES256",
-                         "--yes", "-o", archive_tgz, archive_path])
+                        "--yes", "-o", archive_tgz, archive_path])
             # can do with python tar file, but being lazy
             check_call(["tar", "xf", archive_tgz, "-C", archive_dst])
             os.unlink(archive_tgz)
@@ -58,5 +60,5 @@ class DownloadToFileSystemCorpus(object):
 
     def download_truth(self):
         u = "{0}/{1}".format(self.url, self.truth_fname)
-        logging.info("Fetching truth database {0}".format(u))
+        logger.info("Fetching truth database {0}".format(u))
         r = urllib.request.urlretrieve(u, self.truth_db_pth)

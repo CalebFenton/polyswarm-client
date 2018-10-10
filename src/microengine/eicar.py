@@ -1,8 +1,11 @@
 import base64
+import logging
 
 from polyswarmclient.microengine import Microengine
 
+logger = logging.getLogger(__name__)  # Initialize logger
 EICAR = base64.b64decode(b'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=')
+
 
 class EicarMicroengine(Microengine):
     """Microengine which tests for the EICAR test file"""

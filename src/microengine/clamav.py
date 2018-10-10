@@ -1,9 +1,12 @@
 import clamd
+import logging
 import os
 
 from io import BytesIO
 from polyswarmclient.microengine import Microengine
 from polyswarmclient.scanner import Scanner
+
+logger = logging.getLogger(__name__)  # Initialize logger
 
 CLAMD_HOST = os.getenv('CLAMD_HOST', 'localhost')
 CLAMD_PORT = int(os.getenv('CLAMD_PORT', '3310'))
@@ -23,7 +26,7 @@ class ClamavScanner(Scanner):
             chain (str): Chain we are operating on
         Returns:
             (bool, bool, str): Tuple of bit, verdict, metadata
-        
+
         Note:
             | The meaning of the return types are as follows:
             |   - **bit** (*bool*): Whether to include this artifact in the assertion or not

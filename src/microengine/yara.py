@@ -1,10 +1,12 @@
-import yara
-import tempfile
+import logging
 import os
+import tempfile
+import yara
 
 from polyswarmclient.microengine import Microengine
 from polyswarmclient.scanner import Scanner
 
+logger = logging.getLogger(__name__)  # Initialize logger
 RULES_DIR = os.getenv('RULES_DIR', 'docker/yara-rules')
 
 
@@ -34,7 +36,6 @@ class YaraScanner(Scanner):
             return True, True, ''
 
         return True, False, ''
-
 
 
 class YaraMicroengine(Microengine):

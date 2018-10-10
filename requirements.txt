@@ -4,6 +4,7 @@ async_generator==1.10
 base58==0.2.5
 clamd==1.0.2
 click==6.7
+python-json-logger==0.1.9
 web3==4.6.0
 websockets==6.0
 yara-python==3.7.0
