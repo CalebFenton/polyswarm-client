@@ -117,7 +117,7 @@ class Client(object):
         self.on_new_verdict = events.OnNewVerdictCallback()
         self.on_quorum_reached = events.OnQuorumReachedCallback()
         self.on_settled_bounty = events.OnSettledBountyCallback()
-        self.on_ambassador_opened_offer = events.OnAmbassadorOpenedOfferCallback()
+        self.on_ambassador_created_offer = events.OnAmbassadorCreatedOfferCallback()
 
         # Events scheduled on block deadlines
         self.on_reveal_assertion_due = events.OnRevealAssertionDueCallback()
@@ -486,6 +486,6 @@ class Client(object):
                     asyncio.get_event_loop().create_task(self.on_settled_bounty.run(**data, chain=chain))
                 elif event == 'initialized_channel':
                     logger.info('Received initialized_channel: %s', data)
-                    asyncio.get_event_loop().create_task(self.on_ambassador_opened_offer.run(**data))
+                    asyncio.get_event_loop().create_task(self.on_ambassador_created_offer.run(**data))
                 else:
                     logger.error('Invalid event type from polyswarmd: %s', resp)

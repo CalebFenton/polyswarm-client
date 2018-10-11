@@ -48,7 +48,7 @@ class EicarAmbassador(Ambassador):
     async def initialize_offer_channels(self):
         if OFFER_EXPERT:
             # TODO: Parameters
-            event = await self.open_offer_channel(OFFER_EXPERT, 100 * 10**18, 10**18, 20)
+            channel, event = await self.open_offer_channel(OFFER_EXPERT, 100 * 10**18, 10**18, 20)
             logger.info('Waiting on expert %s to join', OFFER_EXPERT)
             await event.wait()
 
@@ -59,7 +59,7 @@ class EicarAmbassador(Ambassador):
                 logging.info('No offer channels open, ending offer task')
                 raise StopAsyncIteration
 
-            guid = random.choice(self.open_channels.keys())
+            guid = random.choice(list(self.open_channels.keys()))
             channel = self.open_channels.get(guid)
             filename, content = random.choice(ARTIFACTS)
 
@@ -69,4 +69,4 @@ class EicarAmbassador(Ambassador):
                 logger.error('Could not submit artifact to IPFS')
                 return None
 
-            return self.offer_guid, ipfs_uri, 0
+            return channel.guid, ipfs_uri, 0

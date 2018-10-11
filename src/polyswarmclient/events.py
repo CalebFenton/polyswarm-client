@@ -176,8 +176,8 @@ class OnSettledBountyCallback(Callback):
         return await super().run(settled_block, settler, chain)
 
 
-class OnAmbassadorOpenedOfferCallback(Callback):
-    """Called upon a channel being opened by an ambassador"""
+class OnAmbassadorCreatedOfferCallback(Callback):
+    """Called upon a channel being created by an ambassador"""
 
     async def run(self, guid, ambassador, expert, multi_signature):
         """Run the registered callbacks
@@ -189,6 +189,19 @@ class OnAmbassadorOpenedOfferCallback(Callback):
             multi_signature (str): Address of the multisig contract
         """
         return await super().run(guid, ambassador, expert, multi_signature)
+
+
+class OnAmbassadorOpenedOfferCallback(Callback):
+    """Called upon a channel being opened by an ambassador"""
+
+    async def run(self, guid, message):
+        """Run the registered callbacks
+
+        Args:
+            guid (str): GUID of the channel
+            message (obj): Message received
+        """
+        return await super().run(guid, message)
 
 
 class OnExpertJoinedOfferCallback(Callback):

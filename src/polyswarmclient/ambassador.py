@@ -183,9 +183,6 @@ class Ambassador(object):
 
         await self.initialize_offer_channels()
 
-        logging.info('Waiting for event channels to be set up')
-        await self.offers_ready.wait()
-
         async for offer in self.offers():
             # Exit if we are in testing mode
             if self.testing and self.offers_sent >= self.testing:
@@ -206,9 +203,8 @@ class Ambassador(object):
 
     async def open_offer_channel(self, expert_address, ambassador_balance, initial_offer_amount, settlement_period_length):
         # Create and open an offer with offersclient, then watch for an expert to join
-        guid = await self.client.offers.create_and_open(expert_address, ambassador_balance, initial_offer_amount, settlement_period_length)
-        self.pending_channels[guid] = asyncio.Event()
-        channel = self.client.offers.channels[guid]
+        channel = await self.client.offers.create_and_open(expert_address, ambassador_balance, initial_offer_amount, settlement_period_length)
+        self.pending_channels[channel.guid] = (channel, asyncio.Event())
         channel.on_expert_joined_offer.register(self.__handle_expert_joined_offer)
         return self.pending_channels[channel.guid]
 
@@ -218,6 +214,7 @@ class Ambassador(object):
         if not event:
             logger.warning('Expert joined invalid channel')
             return
+        del self.pending_channels[guid]
         self.open_channels[guid] = channel
         event.set()
 

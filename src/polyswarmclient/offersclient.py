@@ -17,14 +17,15 @@ CHAIN = 'home'
 
 
 class OfferChannel(object):
-    def __init__(self, client, guid, ambassador_balance, expert_balance, is_ambassador, nonce=0):
-        self.__offersclient = client
+    def __init__(self, offersclient, guid, is_ambassador, ambassador_balance=0, expert_balance=0, nonce=0):
+        self.__offersclient = offersclient
         self.guid = guid
         self.ambassador_balance = ambassador_balance
         self.expert_balance = expert_balance
         self.is_ambassador = is_ambassador
         self.nonce = nonce
 
+        self.is_joined = False
         self.is_closed = False
         self.last_message = None
         self.event_socket = None
@@ -37,9 +38,14 @@ class OfferChannel(object):
         self.on_settle_started = events.OnOfferSettleStartedCallback()
         self.on_settle_challenged = events.OnOfferSettleChallengedCallback()
 
-    def push_state(self, state):
+    def update_state(self, message):
         # TODO: change to be a persistant database so all the assersions can be saved, channel resume. Currently saving just the last state/signature for disputes
-        self.last_message = state
+        self.last_message = message
+
+        state = message.get('state', {})
+        self.offer_amount = state.get('offer_amount', 0)
+        self.ambassador_balance = state.get('ambassador_balance', 0)
+        self.expert_balance = state.get('expert_balance', 0)
 
     async def close_sockets(self):
         if self.event_socket:
@@ -50,15 +56,15 @@ class OfferChannel(object):
 
     async def send_offer(self, offer_amount, ipfs_uri):
         if not self.is_ambassador:
-            logging.error('Attempted to send offer as an expert')
+            logger.error('Attempted to send offer as an expert')
             return
 
         if self.is_closed or not self.last_message:
-            logging.error('Attempted to send offer on invalid channel')
+            logger.error('Attempted to send offer on invalid channel')
             return
 
         if not self.last_message['type'] != 'accept':
-            logging.error('Attempted to send an offer while one is already pending')
+            logger.error('Attempted to send an offer while one is already pending')
             return
 
         offer_state = dict(self.last_message['state'])
@@ -82,7 +88,7 @@ class OfferChannel(object):
         sig['type'] = 'offer'
         sig['artifact'] = ipfs_uri
 
-        logging.info('Sending New Offer: \n%s', offer_state)
+        logger.info('Sending New Offer: %s', offer_state)
 
         await self.msg_socket.send(
             json.dumps(sig)
@@ -90,15 +96,15 @@ class OfferChannel(object):
 
     async def accept_offer(self, offer_amount, ipfs_uri):
         if self.is_ambassador:
-            logging.error('Attempted to accept offer as an ambassador')
+            logger.error('Attempted to accept offer as an ambassador')
             return
 
         if self.is_closed or not self.last_message:
-            logging.error('Attempted to accept offer on invalid channel')
+            logger.error('Attempted to accept offer on invalid channel')
             return
 
         if not self.last_message['type'] != 'offer':
-            logging.error('Attempted to accept a non-existing offer')
+            logger.error('Attempted to accept a non-existing offer')
             return
 
         # FIXME
@@ -133,9 +139,16 @@ class OfferChannel(object):
         # FIXME
         return True
 
-    async def run(self):
+    async def run(self, init_message=None):
+        if self.is_ambassador and not init_message:
+            logger.error('Trying to open a channel as an ambassador, but no init message provided, aborting')
+            return
+        elif not self.is_ambassador and init_message:
+            logger.error('Trying to open a channel as an expert, but init message provided, aborting')
+            return
+
         asyncio.get_event_loop().create_task(self.listen_for_events())
-        asyncio.get_event_loop().create_task(self.listen_for_messages())
+        asyncio.get_event_loop().create_task(self.listen_for_messages(init_message))
 
     async def listen_for_events(self):
         """Listen for offer events via websocket connection to polyswarmd"""
@@ -153,20 +166,20 @@ class OfferChannel(object):
                     event = resp.get('event')
                     data = resp.get('data')
                 except json.JSONDecodeError:
-                    logging.error('Invalid offer message response from polyswarmd: %s', resp)
+                    logger.error('Invalid offer message response from polyswarmd: %s', resp)
                     continue
 
                 if event['event'] == 'closed_agreement':
-                    logging.info('Received closed agreement on channel %s: %s', self.guid, data)
+                    logger.info('Received closed agreement on channel %s: %s', self.guid, data)
                     asyncio.get_event_loop().create_task(self.on_closed_agreement.run(**data))
                 elif event['event'] == 'settled_started':
-                    logging.info('Received settle started on channel %s: %s', self.guid, data)
+                    logger.info('Received settle started on channel %s: %s', self.guid, data)
                     asyncio.get_event_loop().create_task(self.on_settle_started.run(**data))
                 elif event['event'] == 'settle_challenged':
-                    logging.info('Received settle challenged on channel %s: %s', self.guid, data)
+                    logger.info('Received settle challenged on channel %s: %s', self.guid, data)
                     asyncio.get_event_loop().create_task(self.on_settle_challenged.run(*data))
                 else:
-                    logging.error('Invalid offer event type from polyswarmd: %s', resp)
+                    logger.error('Invalid offer event type from polyswarmd: %s', resp)
                     continue
 
     async def listen_for_messages(self, init_message=None):
@@ -180,7 +193,10 @@ class OfferChannel(object):
 
             # send open message on init
             if init_message:
-                logging.info('Sending Open Channel Message: \n%s', init_message['state'])
+                # XXX: Currently handshake is racy due to polyswarmd mitm, we have a ticket to fix this but it is
+                # a protocol change, so for now put in a delay
+                await asyncio.sleep(1)
+                logger.info('Sending Open Channel Message: %s', init_message)
                 await ws.send(json.dumps(init_message))
 
             while not ws.closed:
@@ -188,13 +204,13 @@ class OfferChannel(object):
                     resp = await ws.recv()
                     msg = json.loads(resp)
                 except json.JSONDecodeError:
-                    logging.error('Invalid offer message response from polyswarmd: %s', resp)
+                    logger.error('Invalid offer message response from polyswarmd: %s', resp)
                     continue
 
                 if self.is_ambassador:
-                    success = self.__handle_message_ambassador(msg)
+                    success = await self.__handle_message_ambassador(msg)
                 else:
-                    success = self.__handle_message_expert(msg)
+                    success = await self.__handle_message_expert(msg)
 
                 if not success:
                     break
@@ -203,32 +219,34 @@ class OfferChannel(object):
         msg_type = msg.get('type')
         state = msg.get('state')
 
+        logger.info('AMBASSADOR MSG: type: %s, state: %s', msg_type, state)
+
         if not msg_type or not state:
             return False
 
         if msg_type == 'decline':
             pass
         elif msg_type == 'join':
-            self.set_state(msg)
-            logging.info('Channel Joined \n%s', msg['state'])
+            self.update_state(msg)
+            logger.info('Channel Joined \n%s', msg['state'])
             asyncio.get_event_loop().create_task(self.on_expert_joined_offer.run(self.guid))
         elif msg_type == 'accept':
             state_ok = self.check_state(state)
             if state_ok:
-                logging.info('Offer Accepted: \n%s', state)
+                logger.info('Offer Accepted: \n%s', state)
 
                 self.nonce += 1
-                self.push_state(msg)
+                self.update_state(msg)
 
                 # FIXME: offer amount configurable
                 await self.send_offer(msg, 0)
             elif self.last_message['state']['isClosed'] == 1:
-                logging.info('Rejected State: \n%s', msg['state'])
-                logging.info('Closing channel with: \n%s', self.last_message['state'])
+                logger.info('Rejected State: \n%s', msg['state'])
+                logger.info('Closing channel with: \n%s', self.last_message['state'])
                 await self.close_channel(self.last_message)
             else:
-                logging.info('Rejected State: \n%s', msg['state'])
-                logging.info('Disputing channel with: \n%s', self.last_message['state'])
+                logger.info('Rejected State: \n%s', msg['state'])
+                logger.info('Disputing channel with: \n%s', self.last_message['state'])
                 # await dispute_channel(session, ws, offer_channel)
         elif msg_type == 'close':
             await self.__offersclient.close_offer(self.guid, msg)
@@ -240,32 +258,34 @@ class OfferChannel(object):
         msg_type = msg.get('type')
         state = msg.get('state')
 
+        logger.info('EXPERT MSG: type: %s, state: %s', msg_type, state)
+
         if not msg_type or not state:
             return False
 
         if msg_type == 'open':
-            sig = self.sign_state(msg['raw_state'])
-            await self.__offersclient.join_offer(self.guid.int, sig)
-            logging.info('Sending Offer Channel Join Message \n%s', state)
+            sig = self.__offersclient.sign_state(msg['raw_state'])
             sig['type'] = 'join'
-            self.set_state(msg)
+            await self.__offersclient.join_offer(self.guid, sig)
+            logger.info('Sending Offer Channel Join Message %s', state)
+            self.update_state(msg)
             await self.msg_socket.send(json.dumps(sig))
         elif msg_type == 'offer':
             offer_okay = await self.check_offer(msg)
             if offer_okay:
-                logging.info('Received Good Offer:\n%s', msg['state'])
-                self.set_state(msg)
+                logger.info('Received Good Offer:\n%s', msg['state'])
+                self.update_state(msg)
                 await self.accept_offer(msg)
             else:
-                logging.info('Received Bad Offer - Will Dispute:\n%s', msg['state'])
+                logger.info('Received Bad Offer - Will Dispute:\n%s', msg['state'])
                 await self.dispute_channel()
         elif msg_type == 'payout':
             pay_okay = await self.check_payout(msg)
             if pay_okay:
-                logging.info('Received Good Pay:\n%s', msg['state'])
-                self.set_state(msg)
+                logger.info('Received Good Pay:\n%s', msg['state'])
+                self.update_state(msg)
             else:
-                logging.info('Received Bad Pay - Will Dispute:\n%s', msg['state'])
+                logger.info('Received Bad Pay - Will Dispute:\n%s', msg['state'])
                 await self.dispute_channel()
         elif msg_type == 'close':
             sig = self.sign_state(msg['raw_state'])
@@ -336,7 +356,7 @@ class OffersClient(object):
 
         results = await self.__client.make_request('POST', '/offers/state', CHAIN, json=state)
         if not results:
-            logging.error('Expected offer state, received: %s', results)
+            logger.error('Expected offer state, received: %s', results)
             return None
 
         return results.get('state')
@@ -359,33 +379,33 @@ class OffersClient(object):
         }
         results = await self.__client.make_request('POST', '/offers', CHAIN, json=offer, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
         if 'offers_initialized' not in results:
-            logging.error('Expected offer initialized, received: %s', results)
+            logger.error('Expected offer initialized, received: %s', results)
         return results.get('offers_initialized', [])
 
     async def __open_offer(self, guid, signed_state):
         path = '/offers/{0}/open'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
         if 'offers_opened' not in results:
-            logging.error('Expected offer opened, received: %s', results)
+            logger.error('Expected offer opened, received: %s', results)
         return results.get('offers_opened', [])
 
     async def create_and_open(self, expert_address, ambassador_balance, initial_offer_amount, settlement_period_length):
         offers_created = await self.__create_offer(expert_address, settlement_period_length)
         if not offers_created or not len(offers_created) == 1:
             raise Exception('Could not create offer')
-        logging.info('Created offer channel: %s', offers_created)
+        logger.info('Created offer channel: %s', offers_created)
 
         offer_info = offers_created.pop()
         # TOOD: String UUIDs from polyswarmd, polyswarm/polyswarmd#63
@@ -394,106 +414,91 @@ class OffersClient(object):
         state = await self.generate_state(guid, nonce=0, ambassador_address=self.__client.account, expert_address=expert_address, msig_address=msig,
                                           ambassador_balance=ambassador_balance, expert_balance=0, offer_amount=initial_offer_amount)
         signed_state = self.sign_state(state)
+        signed_state['type'] = 'open'
 
         offers_opened = await self.__open_offer(guid, signed_state)
-        logging.info('Opened offer channel: %s', offers_opened)
+        logger.info('Opened offer channel: %s', offers_opened)
 
-        channel = OfferChannel(self, guid, ambassador_balance, 0, True)
-        asyncio.get_event_loop().create_task(channel.run())
+        channel = OfferChannel(self, guid, True, ambassador_balance, 0)
+        asyncio.get_event_loop().create_task(channel.run(signed_state))
         self.channels[guid] = channel
-
-        return guid
+        return channel
 
     async def cancel_offer(self, guid):
         path = '/offers/{0}/cancel'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
         if 'offers_canceled' not in results:
-            logging.error('Expected offer canceled, received: %s', results)
+            logger.error('Expected offer canceled, received: %s', results)
         return results.get('offers_canceled', [])
 
-    # TODO Async generator for accepting channels from microengine
-
-    async def __join_offer(self, guid, signed_state):
+    async def join_offer(self, guid, signed_state):
         path = '/offers/{0}/join'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
         if 'offers_joined' not in results:
-            logging.error('Expected offer join, received: %s', results)
+            logger.error('Expected offer join, received: %s', results)
         return results.get('offers_joined', [])
 
-    async def join_offer(self, guid, msg):
-        signed_state = self.sign_state(msg['raw_state'])
-        offers_joined = self.__join_offer(guid, signed_state)
-        if not offers_joined or len(offers_joined) != 1:
-            raise Exception('Could not join offer')
-
-        state = msg['state']
-        ambassador_balance = state['ambassador_balance']
-        expert_balance = state['expert_balance']
-
-        signed_state['type'] = 'join'
-
-        channel = OfferChannel(self, ambassador_balance, expert_balance, False)
+    async def listen_and_join_offer(self, guid):
+        channel = OfferChannel(self, guid, False)
         asyncio.get_event_loop().create_task(channel.run())
-        self.channels['guid'] = channel
-
         return channel
 
     async def __close_offer(self, guid, signed_state):
         path = '/offers/{0}/close'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
         if 'offers_closed' not in results:
-            logging.error('Expected offer join, received: %s', results)
+            logger.error('Expected offer join, received: %s', results)
         return results.get('offers_closed', [])
 
     async def __settle_offer(self, guid, signed_state):
         path = '/offers/{0}/settle'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
         if 'offers_settled' not in results:
-            logging.error('Expected offer settle, received: %s', results)
+            logger.error('Expected offer settle, received: %s', results)
         return results.get('offers_settled', [])
 
     async def __challenge_offer(self, guid, signed_state):
         path = '/offers/{0}/challenge'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])
         results = await self.__client.post_transactions(transactions, CHAIN)
         if 'offers_challenged' not in results:
-            logging.error('Expected offer challenge, received: %s', results)
+            logger.error('Expected offer challenge, received: %s', results)
         return results.get('offers_challenged', [])
 
     async def __close_challenged_offer(self, guid, signed_state):
         path = '/offers/{0}/closeChallenged'.format(guid)
         results = await self.__client.make_request('POST', path, CHAIN, json=signed_state, track_nonce=True)
         if not results:
-            logging.error('Expected transactions, received: %s', results)
+            logger.error('Expected transactions, received: %s', results)
             return []
 
         transactions = results.get('transactions', [])

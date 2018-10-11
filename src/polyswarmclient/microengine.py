@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from polyswarmclient import Client
@@ -14,7 +15,7 @@ class Microengine(object):
         self.client.on_new_bounty.register(self.__handle_new_bounty)
         self.client.on_reveal_assertion_due.register(self.__handle_reveal_assertion)
         self.client.on_settle_bounty_due.register(self.__handle_settle_bounty)
-        self.client.on_ambassador_opened_offer.register(self.__handle_ambassador_opened_offer)
+        self.client.on_ambassador_created_offer.register(self.__handle_ambassador_created_offer)
 
         self.testing = testing
         self.bounties_seen = 0
@@ -174,6 +175,8 @@ class Microengine(object):
             self.client.stop()
         return ret
 
-    async def __handle_ambassador_opened_offer(self, guid, ambassador, expert, multi_signature):
-        logger.info('RECEIVED OFFER: guid=%s, ambassador=%s, expert=%s, multisig=%s', guid, ambassador, expert, multi_signature)
+    async def __handle_ambassador_created_offer(self, guid, ambassador, expert, multi_signature):
+        logger.info('Received offer: guid=%s, ambassador=%s, expert=%s, multisig=%s',
+                    guid, ambassador, expert, multi_signature)
+        asyncio.get_event_loop().create_task(self.client.offers.listen_and_join_offer(guid))
 
