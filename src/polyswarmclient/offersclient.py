@@ -73,7 +73,6 @@ class OfferChannel(object):
         # This is the updated nonce
         offer_state['nonce'] = self.nonce
         offer_state['offer_amount'] = offer_amount
-        offer_state['guid'] = str(self.guid.int)
 
         # Delete previous offer verdicts/mask
         if 'verdicts' in offer_state:
@@ -82,7 +81,11 @@ class OfferChannel(object):
         if 'mask' in offer_state:
             del offer_state['mask']
 
-        state = await self.__offersclient.generate_state(offer_state)
+        state = await self.__offersclient.generate_state(self.guid, offer_state['nonce'],
+                                                         offer_state['ambassador'], offer_state['expert'],
+                                                         offer_state['msig_address'], offer_state['ambassador_balance'],
+                                                         offer_state['expert_balance'], offer_state['offer_amount'],
+                                                         offer_state['close_flag'], offer_state['artifact_hash'])
         sig = self.__offersclient.sign_state(state)
 
         sig['type'] = 'offer'
@@ -202,6 +205,7 @@ class OfferChannel(object):
             while not ws.closed:
                 try:
                     resp = await ws.recv()
+                    logger.info('msg loop, got: %s')
                     msg = json.loads(resp)
                 except json.JSONDecodeError:
                     logger.error('Invalid offer message response from polyswarmd: %s', resp)
@@ -316,7 +320,7 @@ class OffersClient(object):
             ambassador_address (str): Address of the ambassador
             expert_address (str): Address of the expert
             msig_address (str): Address of the multisig contract
-            ambassador_balancee (int): Current ambassador balance
+            ambassador_balance (int): Current ambassador balance
             expert_balance (int): Current expert balance
             offer_amount (int): Amount to offer
             close_flag (bool): Should the channel be closed

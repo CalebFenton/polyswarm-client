@@ -69,4 +69,4 @@ class EicarAmbassador(Ambassador):
                 logger.error('Could not submit artifact to IPFS')
                 return None
 
-            return channel.guid, ipfs_uri, 0
+            await yield_((channel.guid, ipfs_uri, 0))
