@@ -1,7 +1,7 @@
 import aiorwlock
 
 
-class Parameters(object):
+class Parameters():
     """Trivial wrapper around a dict but protected via a RWLock to allow updates"""
 
     def __init__(self, p):

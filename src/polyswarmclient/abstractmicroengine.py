@@ -9,7 +9,8 @@ from polyswarmclient.utils import asyncio_stop
 logger = logging.getLogger(__name__)
 
 
-class AbstractMicroengine(object):
+class AbstractMicroengine():
+
     def __init__(self, client, testing=0, scanner=None, chains=None):
         self.client = client
         self.chains = chains

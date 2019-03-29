@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)  # Initialize logger
 MAX_STAKE_RETRIES = 10
 
 
-class AbstractArbiter(object):
+class AbstractArbiter():
+
     def __init__(self, client, testing=0, scanner=None, chains=None):
         self.client = client
         self.chains = chains

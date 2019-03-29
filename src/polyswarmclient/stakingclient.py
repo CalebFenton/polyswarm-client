@@ -55,7 +55,8 @@ class StakeWithdrawTransaction(AbstractTransaction):
         return False
 
 
-class StakingClient(object):
+class StakingClient():
+
     def __init__(self, client):
         self.__client = client
         self.parameters = {}

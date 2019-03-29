@@ -3,7 +3,8 @@ import logging
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-class BalanceClient(object):
+class BalanceClient():
+
     def __init__(self, client):
         self.__client = client
 

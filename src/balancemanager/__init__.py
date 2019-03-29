@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 RELAY_LEEWAY = 5
 
 
-class BalanceManager(object):
+class BalanceManager():
     """
     Balance manager is used for single transfer events in either direction.
     Create a client, choose a chain and amount then run it.
@@ -97,7 +97,7 @@ class Withdraw(BalanceManager):
         super().__init__(client, amount, testing=testing, chains={'side'})
 
 
-class Maintainer(object):
+class Maintainer():
     """
     This class maintains a balance on the sidechain.
     It requires a base setup of a minimum balance.

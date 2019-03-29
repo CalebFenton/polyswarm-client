@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 REQUEST_TIMEOUT = 5.0
 
 
-class Worker(object):
+class Worker():
     def __init__(self, redis_addr, queue, polyswarmd_addr, api_key=None, testing=0, insecure_transport=False,
                  scanner=None):
         self.redis_uri = 'redis://' + redis_addr

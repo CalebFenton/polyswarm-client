@@ -10,7 +10,8 @@ MALICIOUS_BOOTSTRAP_URL = os.getenv('MALICIOUS_BOOTSTRAP_URL')
 ARCHIVE_PASSWORD = os.getenv('ARCHIVE_PASSWORD')
 
 
-class DownloadToFileSystemCorpus(object):
+class DownloadToFileSystemCorpus():
+
     def __init__(self, base_dir=None):
         self.url = MALICIOUS_BOOTSTRAP_URL
         self.base_dir = base_dir if base_dir else tempfile.mkdtemp(suffix="malware-corpus")

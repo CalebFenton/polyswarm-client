@@ -54,7 +54,8 @@ class RelayWithdrawTransaction(AbstractTransaction):
         return False
 
 
-class RelayClient(object):
+class RelayClient():
+
     def __init__(self, client):
         self.__client = client
 

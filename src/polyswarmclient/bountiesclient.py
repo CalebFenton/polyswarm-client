@@ -152,7 +152,8 @@ class SettleBountyTransaction(AbstractTransaction):
         return True
 
 
-class BountiesClient(object):
+class BountiesClient():
+
     def __init__(self, client):
         self.__client = client
         self.parameters = {}

@@ -6,7 +6,7 @@ from queue import PriorityQueue
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-class Callback(object):
+class Callback():
     """
     Abstract callback class which is the parent to a number of child
     callback classes to be used in different scenarios.
@@ -206,7 +206,7 @@ class OnInitializedChannelCallback(Callback):
         return await super().run(guid, ambassador, expert, multi_signature, block_number, txhash)
 
 
-class Schedule(object):
+class Schedule():
     """
     Generic Schedule class. Uses a PriorityQueue data structure to store Events.
     """
@@ -249,7 +249,7 @@ class Schedule(object):
 
 
 @total_ordering
-class Event(object):
+class Event():
     """
     Generic Event class. Stores GUID and can compare for equality and order Events.
 

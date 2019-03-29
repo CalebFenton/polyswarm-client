@@ -15,7 +15,8 @@ MAX_BOUNTIES_PER_BLOCK = 1
 BLOCK_DIVISOR = 1
 
 
-class QueuedBounty(object):
+class QueuedBounty():
+
     def __init__(self, amount, ipfs_uri, duration, api_key=None):
         self.amount = amount
         self.ipfs_uri = ipfs_uri

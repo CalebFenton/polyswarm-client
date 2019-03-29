@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-class ScanResult(object):
+class ScanResult():
     """Results from scanning one artifact"""
 
     def __init__(self, bit=False, verdict=False, confidence=1.0, metadata=''):

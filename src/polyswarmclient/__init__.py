@@ -27,7 +27,7 @@ MAX_ARTIFACTS = 256
 RATE_LIMIT_SLEEP = 2.0
 
 
-class Client(object):
+class Client():
     """Client to connected to a Ethereum wallet as well as a polyswarmd instance.
 
     Args:

@@ -3,7 +3,7 @@ import logging
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
-class OffersClient(object):
+class OffersClient():
     """
     OffersClient to handle offers. Presently stores a given client and parameters.
     """
