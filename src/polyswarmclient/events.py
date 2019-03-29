@@ -6,6 +6,9 @@ from queue import PriorityQueue
 logger = logging.getLogger(__name__)  # Initialize logger
 
 
+#pylint: disable=arguments-differ
+# run(*args, **kwargs) is a common pattern and 100% correct, setting
+# 'arguments-differ' here is to work around this until they resolve #1553
 class Callback():
     """
     Abstract callback class which is the parent to a number of child
