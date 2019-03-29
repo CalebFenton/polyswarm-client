@@ -98,5 +98,5 @@ def main(log, polyswarmd_addr, keyfile, password, api_key, backend, testing, ins
 
 
 if __name__ == "__main__":
-    #pylint: disable=no-value-for-parameter
+    # pylint: disable=no-value-for-parameter
     main()

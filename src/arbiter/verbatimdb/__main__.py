@@ -19,5 +19,5 @@ def main(malicious, benign, output, log_format):
 
 
 if __name__ == "__main__":
-    #pylint: disable=no-value-for-parameter
+    # pylint: disable=no-value-for-parameter
     main()
