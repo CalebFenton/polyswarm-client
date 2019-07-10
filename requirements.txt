@@ -10,7 +10,6 @@ click==6.7
 coverage==4.5.1
 pycryptodome>=3.4.7
 hypothesis==3.82.1
-tox==3.4.0
 polyswarm-artifact>=1.2.0
 pytest==3.9.2
 pytest-asyncio==0.9.0
